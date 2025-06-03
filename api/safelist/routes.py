@@ -1,15 +1,16 @@
 from flask import Blueprint, request, jsonify, render_template
 from models import SafeList, db
-from datetime import datetime, timedelta
+from datetime import datetime
 from markupsafe import escape
 import ipaddress
 import csv
 from io import StringIO
+from datetime import datetime, timedelta
 
-safelist_bp = Blueprint('safelist', __name__, url_prefix='/api/safelist')
 
-# Get all safelist entries
-@safelist_bp.route('/', methods=['GET'])
+safelist_bp = Blueprint('safelist', __name__)
+
+@safelist_bp.route('/api/safelist', methods=['GET'])
 def get_safelist():
     entries = SafeList.query.all()
     return jsonify([{
@@ -22,15 +23,17 @@ def get_safelist():
         'comment': entry.comment
     } for entry in entries])
 
-# Add new IP
-@safelist_bp.route('/', methods=['POST'])
+@safelist_bp.route('/')
+def index():
+    return render_template('ip_list.html')
+
+@safelist_bp.route('/api/safelist', methods=['POST'])
 def add_ip():
     data = request.get_json()
     ip_address = data.get('ip_address')
     comment = escape(data.get('comment'))
     user_id = data.get('user_id')
-    duration = data.get('duration')
-
+    duration = data.get('duration')  # بالـ ساعات
     try:
         ipaddress.ip_network(ip_address, strict=False)
     except ValueError:
@@ -59,8 +62,7 @@ def add_ip():
     db.session.commit()
     return jsonify({'message': 'IP added successfully'}), 201
 
-# Upload CSV
-@safelist_bp.route('/upload', methods=['POST'])
+@safelist_bp.route('/api/safelist/upload', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -100,8 +102,7 @@ def upload_csv():
     db.session.commit()
     return jsonify({'message': f'{added} IP(s) added successfully.', 'errors': errors})
 
-# Edit IP
-@safelist_bp.route('/<string:entry_id>', methods=['PUT'])
+@safelist_bp.route('/api/safelist/<string:entry_id>', methods=['PUT'])
 def edit_ip(entry_id):
     data = request.get_json()
     entry = SafeList.query.get_or_404(entry_id)
@@ -129,8 +130,7 @@ def edit_ip(entry_id):
     db.session.commit()
     return jsonify({'message': 'IP updated successfully'})
 
-# Search IP
-@safelist_bp.route('/search', methods=['GET'])
+@safelist_bp.route('/api/safelist/search', methods=['GET'])
 def search_ip():
     ip = request.args.get('ip')
     if not ip:
@@ -155,16 +155,14 @@ def search_ip():
         'comment': entry.comment
     })
 
-# Delete single IP
-@safelist_bp.route('/<string:entry_id>', methods=['DELETE'])
+@safelist_bp.route('/api/safelist/<string:entry_id>', methods=['DELETE'])
 def delete_ip(entry_id):
     entry = SafeList.query.get_or_404(entry_id)
     db.session.delete(entry)
     db.session.commit()
     return jsonify({'message': 'IP deleted successfully'})
 
-# Bulk remove IPs
-@safelist_bp.route('/remove', methods=['POST'])
+@safelist_bp.route('/api/safelist/remove', methods=['POST'])
 def remove_ips():
     data = request.get_json()
     ids = data.get('ids')
@@ -179,3 +177,7 @@ def remove_ips():
         db.session.delete(entry)
     db.session.commit()
     return jsonify({'message': f'Successfully removed {len(entries)} IP(s)'})
+
+@safelist_bp.route('/ip-list')
+def ip_list():
+    return render_template('ip_list.html')
