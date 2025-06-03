@@ -26,8 +26,13 @@ def create_app():
     app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
     CORS(app)
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://allkibria:black-hole@localhost:5432/modernizing_black_hole'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # Use PostgreSQL URL from .env or fallback to SQLite
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///local.db"  # Fallback if .env not found
+    )
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 
     # Initialize DB
     db.init_app(app)
