@@ -27,9 +27,14 @@
         </div>
     </form>
 
-    <div id="message" class="mb-4"></div>
+    <div id="message" class="mb-4 text-success fw-bold"></div>
 
     <h3>Safelist Table</h3>
+
+    <form id="uploadForm" class="mb-3" enctype="multipart/form-data">
+        <input type="file" name="file" id="csvFile" accept=".csv" class="form-control mb-2" required />
+        <button type="submit" class="btn btn-secondary">Upload CSV</button>
+    </form>
 
     <button id="deleteSelected" class="btn btn-danger mb-3" disabled>Delete Selected</button>
 
@@ -52,8 +57,10 @@
 </div>
 
 <script>
+    const API_PREFIX = "/safelist/api/safelist";
+
     async function fetchSafelist() {
-        const response = await fetch('/safelist/api/safelist');
+        const response = await fetch(API_PREFIX);
         const data = await response.json();
         const tableBody = document.querySelector('#ipTable tbody');
         tableBody.innerHTML = '';
@@ -69,15 +76,16 @@
                     <td>${entry.created_at || ''}</td>
                     <td>${entry.ending_date || ''}</td>
                     <td>${entry.duration || ''}</td>
-                    <td>
-                        <button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button>
-                    </td>
+                    <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
                 </tr>
             `;
             tableBody.innerHTML += row;
         });
 
         updateDeleteButtonState();
+        document.querySelectorAll('.rowCheckbox').forEach(cb => {
+            cb.addEventListener('change', updateDeleteButtonState);
+        });
     }
 
     function updateDeleteButtonState() {
@@ -85,59 +93,55 @@
         document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
     }
 
-    document.getElementById('ipForm').addEventListener('submit', async function (e) {
+    document.getElementById('ipForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const ip_address = document.getElementById('ip_address').value;
+        const ip = document.getElementById('ip_address').value;
         const comment = document.getElementById('comment').value;
         const duration = document.getElementById('duration').value;
 
-        const data = {
-            ip_address,
-            comment,
-            duration,
-            user_id: 1 // hardcoded or dynamic if needed
-        };
+        const response = await fetch(API_PREFIX, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip_address: ip, comment, user_id: 'web_user', duration })
+        });
 
-        try {
-            const response = await fetch('/safelist/api/safelist', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Unknown error');
-            }
-
-            const result = await response.json();
-            document.getElementById('message').innerHTML = `<div class="alert alert-success">${result.message}</div>`;
-            fetchSafelist();
-            e.target.reset();
-        } catch (err) {
-            document.getElementById('message').innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
-        }
+        const result = await response.json();
+        document.getElementById('message').textContent = result.message || result.error || '';
+        fetchSafelist();
+        e.target.reset();
     });
 
-    // Call fetchSafelist on page load
-    window.onload = fetchSafelist;
-
-    // Event listener for checkbox changes
-    document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('rowCheckbox')) {
-            updateDeleteButtonState();
-        }
-    });
-
-    // Select All functionality
-    document.getElementById('selectAll').addEventListener('change', function () {
-        const checkboxes = document.querySelectorAll('.rowCheckbox');
-        checkboxes.forEach(cb => cb.checked = this.checked);
+    document.getElementById('selectAll').addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = checked);
         updateDeleteButtonState();
     });
+
+    document.getElementById('deleteSelected').addEventListener('click', async () => {
+        const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
+        for (let id of ids) {
+            await fetch(`${API_PREFIX}/${id}`, { method: 'DELETE' });
+        }
+        fetchSafelist();
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('csvFile');
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        const response = await fetch(`${API_PREFIX}/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        document.getElementById('message').textContent = result.message || result.error || '';
+        fetchSafelist();
+    });
+
+    fetchSafelist();
 </script>
 </body>
 </html>
