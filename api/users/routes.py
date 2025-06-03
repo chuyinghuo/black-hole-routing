@@ -1,8 +1,19 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from werkzeug.security import generate_password_hash
-from backend.models import Admin, Editor, Viewer #need to check models.py
-from app import db 
-users_bp = Blueprint('users', __name__)
+from models import Admin, Editor, Viewer, db
+
+users_bp = Blueprint(
+    'users',
+    __name__,
+    template_folder='templates' 
+)
+
+# ════════════════════════════════════════════════
+#                     FORMS
+# ════════════════════════════════════════════════
+@users_bp.route('/add-user-form')
+def add_user_form():
+    return render_template('add_user.html')
 
 # ════════════════════════════════════════════════
 #                    CREATE
@@ -198,9 +209,6 @@ def update_viewer(viewer_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# ════════════════════════════════════════════════
-#                    DELETE
-# ════════════════════════════════════════════════
 # ════════════════════════════════════════════════
 #                    DELETE
 # ════════════════════════════════════════════════

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from blocklist.routes import blocklist_bp
 from safelist.routes import safelist_bp
+from users.routes import users_bp
 from flask_sqlalchemy import SQLAlchemy
 from models import db
 
@@ -40,6 +41,7 @@ def create_app():
     # Register Blueprints
     app.register_blueprint(blocklist_bp, url_prefix="/blocklist")
     app.register_blueprint(safelist_bp, url_prefix="/safelist")
+    app.register_blueprint(users_bp, url_prefix="/users")
 
     return app
 
@@ -48,6 +50,7 @@ if __name__ == "__main__":
 
     # Create tables if they don't exist (optional for dev)
     with app.app_context():
+        db.drop_all()
         db.create_all()
 
     app.run(debug=True)

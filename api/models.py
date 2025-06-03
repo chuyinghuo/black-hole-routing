@@ -26,5 +26,29 @@ class IpBlocklist(db.Model):
     netid = db.Column(db.String(128), nullable=False)
     api_token = db.Column(db.String(256), nullable=False)
 
+class Admin(db.Model):
+    __tablename__ = 'admins'
+    admin_id = db.Column(db.Integer, primary_key=True)
+    net_id = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    time_added = db.Column(db.String(100), nullable=False)
+    auth_key = db.Column(db.String(100), nullable=False)
+
+class Editor(db.Model):
+    __tablename__ = 'editors'
+    editor_id = db.Column(db.Integer, primary_key=True)
+    net_id = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    time_added = db.Column(db.String(100), nullable=False)
+    auth_key = db.Column(db.String(100), nullable=False)
+
+class Viewer(db.Model):
+    __tablename__ = 'viewers'
+    viewer_id = db.Column(db.Integer, primary_key=True)
+    net_id = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    time_added = db.Column(db.String(100), nullable=False)
+    auth_key = db.Column(db.String(100), nullable=False)
+
 def __repr__(self):
-        return f"<IP: {self.ip}>"
+    return f"<IP: {self.ip}>"
