@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IP Blocklist</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        h1, h2 { color: #333; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+        th { background: #f5f5f5; }
+        tr:nth-child(even) { background: #fafafa; }
+        input[type="text"], input[type="number"], input[type="datetime-local"] {
+            padding: 5px; width: 95%; box-sizing: border-box; border-radius: 3px; border: 1px solid #ccc;
+        }
+        button {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 3px;
+            background: #1976d2;
+            color: white;
+            cursor: pointer;
+            margin: 2px 0;
+        }
+        button.delete {
+            background: #d32f2f;
+        }
+        button:hover { opacity: 0.9; }
+        form.inline { display: inline; }  
+    </style>
+</head>
+<body>
+    <h1>IP Blocklist</h1>
+    <form method="POST" action="/blocklist/">
+        <input type="text" name="ip" placeholder="IP (CIDR)" required>
+        <input type="number" name="num_blocks" placeholder="Num of Blocks" required>
+        <input type="datetime-local" name="time_added" placeholder="Time Added" required id="time_added">
+        <input type="number" name="duration" placeholder="Duration (hours)" required id="duration">
+        <input type="datetime-local" name="time_unblocked" placeholder="Time Unblocked" required id="time_unblocked" readonly>
+        <input type="text" name="reason" placeholder="Reason" required>
+        <input type="text" name="netid" placeholder="NetID" required>
+        <button type="submit">Add</button>
+    </form>
+    <h2>Blocked IPs</h2>
+    <table>
+        <tr>
+            <th>IP</th>
+            <th>Num of Blocks</th>
+            <th>Time Added</th>
+            <th>Time Unblocked</th>
+            <th>Reason</th>
+            <th>NetID</th>
+            <th>Duration</th>
+            <th>Actions</th>
+        </tr>
+        {% for ip in ips %}
+<tr>
+    <form method="POST" action="/blocklist/update">
+        <td><input type="text" name="ip" value="{{ ip.ip }}" required></td>
+        <td><input type="number" name="num_blocks" value="{{ ip.num_blocks }}" required></td>
+        <td><input type="datetime-local" name="time_added"
+            value="{{ ip.time_added.strftime('%Y-%m-%dT%H:%M') if ip.time_added else '' }}" required></td>
+        <td><input type="datetime-local" name="time_unblocked"
+            value="{{ ip.time_unblocked.strftime('%Y-%m-%dT%H:%M') if ip.time_unblocked else '' }}" required></td>
+        <td><input type="text" name="reason" value="{{ ip.reason }}" required></td>
+        <td><input type="text" name="netid" value="{{ ip.netid }}" required></td>
+        <td><input type="text" value="{{ ip.duration }}" readonly></td>
+        <td>
+            <button type="submit" name="action" value="update">Update</button>
+            <button type="submit" formaction="/blocklist/delete" formmethod="POST" class="delete">Delete</button>
+        </td>
+    </form>
+</tr>
+{% endfor %}
+    </table>
+    <script>
+function updateDuration() {
+    const start = document.getElementById('time_added').value;
+    const end = document.getElementById('time_unblocked').value;
+    if (start && end) {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const diffMs = endDate - startDate;
+        if (diffMs >= 0) {
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            document.getElementById('duration').value = diffHours + " hours";
+        } else {
+            document.getElementById('duration').value = "";
+        }
+    }
+}
+document.getElementById('time_added').addEventListener('change', updateDuration);
+document.getElementById('time_unblocked').addEventListener('change', updateDuration);
+function updateEndDate() {
+    const start = document.getElementById('time_added').value;
+    const duration = parseInt(document.getElementById('duration').value, 10);
+    if (start && !isNaN(duration)) {
+        const startDate = new Date(start);
+        startDate.setHours(startDate.getHours() + duration);
+        // Format as yyyy-MM-ddTHH:mm for datetime-local
+        const pad = n => n.toString().padStart(2, '0');
+        const formatted = `${startDate.getFullYear()}-${pad(startDate.getMonth()+1)}-${pad(startDate.getDate())}T${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+        document.getElementById('time_unblocked').value = formatted;
+    } else {
+        document.getElementById('time_unblocked').value = '';
+    }
+}
+document.getElementById('time_added').addEventListener('change', updateEndDate);
+document.getElementById('duration').addEventListener('input', updateEndDate);
+</script>
+</body>
+</html>
