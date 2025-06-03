@@ -53,7 +53,7 @@
 
 <script>
     async function fetchSafelist() {
-        const response = await fetch('/api/safelist');
+        const response = await fetch('/safelist/api/safelist');
         const data = await response.json();
         const tableBody = document.querySelector('#ipTable tbody');
         tableBody.innerHTML = '';
@@ -78,57 +78,12 @@
         });
 
         updateDeleteButtonState();
-
-        // Add event listeners after rendering rows
-        document.querySelectorAll('.updateBtn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.target.getAttribute('data-id');
-                // Redirect to edit page (you can create this page)
-                window.location.href = `/edit-ip/${id}`;
-            });
-        });
-
-        document.querySelectorAll('.rowCheckbox').forEach(chk => {
-            chk.addEventListener('change', updateDeleteButtonState);
-        });
     }
 
     function updateDeleteButtonState() {
-        const anyChecked = document.querySelectorAll('.rowCheckbox:checked').length > 0;
-        document.getElementById('deleteSelected').disabled = !anyChecked;
+        const checkboxes = document.querySelectorAll('.rowCheckbox:checked');
+        document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
     }
-
-    document.getElementById('selectAll').addEventListener('change', function () {
-        const checked = this.checked;
-        document.querySelectorAll('.rowCheckbox').forEach(chk => {
-            chk.checked = checked;
-        });
-        updateDeleteButtonState();
-    });
-
-    document.getElementById('deleteSelected').addEventListener('click', async () => {
-        const checkedBoxes = [...document.querySelectorAll('.rowCheckbox:checked')];
-        const ids = checkedBoxes.map(cb => cb.getAttribute('data-id'));
-
-        if (!confirm(`Are you sure you want to delete ${ids.length} selected IP(s)?`)) {
-            return;
-        }
-
-        const res = await fetch('/api/safelist/remove', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ ids })
-        });
-
-        const msgDiv = document.getElementById('message');
-        const result = await res.json();
-        msgDiv.className = 'alert ' + (res.ok ? 'alert-success' : 'alert-danger');
-        msgDiv.textContent = result.message || result.error;
-
-        if (res.ok) {
-            fetchSafelist();
-        }
-    });
 
     document.getElementById('ipForm').addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -137,29 +92,52 @@
         const comment = document.getElementById('comment').value;
         const duration = document.getElementById('duration').value;
 
-        const res = await fetch('/api/safelist', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                ip_address,
-                comment,
-                duration,
-                user_id: 1
-            })
-        });
+        const data = {
+            ip_address,
+            comment,
+            duration,
+            user_id: 1 // hardcoded or dynamic if needed
+        };
 
-        const msgDiv = document.getElementById('message');
-        const result = await res.json();
-        msgDiv.className = 'alert ' + (res.ok ? 'alert-success' : 'alert-danger');
-        msgDiv.textContent = result.message || result.error;
+        try {
+            const response = await fetch('/safelist/api/safelist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
 
-        if (res.ok) {
-            this.reset();
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Unknown error');
+            }
+
+            const result = await response.json();
+            document.getElementById('message').innerHTML = `<div class="alert alert-success">${result.message}</div>`;
             fetchSafelist();
+            e.target.reset();
+        } catch (err) {
+            document.getElementById('message').innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
         }
     });
 
+    // Call fetchSafelist on page load
     window.onload = fetchSafelist;
+
+    // Event listener for checkbox changes
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('rowCheckbox')) {
+            updateDeleteButtonState();
+        }
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function () {
+        const checkboxes = document.querySelectorAll('.rowCheckbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateDeleteButtonState();
+    });
 </script>
 </body>
 </html>
