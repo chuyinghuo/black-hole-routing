@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from api.models import SafeList, db
+from models import SafeList, db
 from datetime import datetime
 from markupsafe import escape
 import ipaddress

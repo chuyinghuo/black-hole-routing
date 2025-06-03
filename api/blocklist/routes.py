@@ -2,7 +2,7 @@ import os
 import secrets
 from flask import Flask, render_template, request, redirect, Blueprint
 from datetime import datetime, timedelta
-from api.models import db, IpBlocklist  
+from models import db, IpBlocklist  
 
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 

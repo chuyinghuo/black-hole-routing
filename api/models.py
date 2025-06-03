@@ -3,7 +3,7 @@ from uuid import uuid4
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import CIDR, INTERVAL
 
-from api.__init_db__ import db
+from __init_db__ import db
 
 class SafeList(db.Model):
     __tablename__ = 'safelist'

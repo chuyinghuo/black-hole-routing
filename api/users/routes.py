@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash
 from backend.models import Admin, Editor, Viewer #need to check models.py
-from api.app import db 
+from app import db 
 users_bp = Blueprint('users', __name__)
 
 # ════════════════════════════════════════════════
