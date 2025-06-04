@@ -56,6 +56,38 @@
     </table>
 </div>
 
+<!-- Modal for Update -->
+<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="updateForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="updateModalLabel">Update IP Entry</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="updateId">
+          <div class="mb-3">
+            <label for="updateIP" class="form-label">IP Address</label>
+            <input type="text" class="form-control" id="updateIP" required>
+          </div>
+          <div class="mb-3">
+            <label for="updateComment" class="form-label">Comment</label>
+            <input type="text" class="form-control" id="updateComment">
+          </div>
+          <div class="mb-3">
+            <label for="updateEnding" class="form-label">Ending Date</label>
+            <input type="datetime-local" class="form-control" id="updateEnding">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
     const API_PREFIX = "/safelist/api/safelist";
 
@@ -85,6 +117,27 @@
         updateDeleteButtonState();
         document.querySelectorAll('.rowCheckbox').forEach(cb => {
             cb.addEventListener('change', updateDeleteButtonState);
+        });
+
+        document.querySelectorAll('.updateBtn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                const row = e.target.closest('tr');
+                document.getElementById('updateId').value = id;
+                document.getElementById('updateIP').value = row.children[2].textContent.trim();
+                document.getElementById('updateComment').value = row.children[3].textContent.trim();
+
+                const rawDate = row.children[6].textContent.trim();
+                const dt = new Date(rawDate);
+                if (!isNaN(dt)) {
+                    document.getElementById('updateEnding').value = dt.toISOString().slice(0, 16);
+                } else {
+                    document.getElementById('updateEnding').value = '';
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById('updateModal'));
+                modal.show();
+            });
         });
     }
 
@@ -141,7 +194,29 @@
         fetchSafelist();
     });
 
+    document.getElementById('updateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('updateId').value;
+        const ip = document.getElementById('updateIP').value;
+        const comment = document.getElementById('updateComment').value;
+        const ending = document.getElementById('updateEnding').value;
+
+        const res = await fetch(`${API_PREFIX}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip_address: ip, comment: comment, ending_date: ending })
+        });
+
+        const result = await res.json();
+        document.getElementById('message').textContent = result.message || result.error || '';
+
+        bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
+        fetchSafelist();
+    });
+
     fetchSafelist();
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

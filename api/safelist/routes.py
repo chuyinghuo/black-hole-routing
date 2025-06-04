@@ -178,6 +178,4 @@ def remove_ips():
     db.session.commit()
     return jsonify({'message': f'Successfully removed {len(entries)} IP(s)'})
 
-@safelist_bp.route('/ip-list')
-def ip_list():
-    return render_template('ip_list.html')
+
