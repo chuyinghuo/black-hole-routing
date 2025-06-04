@@ -11,7 +11,7 @@ users_bp = Blueprint(
 # ════════════════════════════════════════════════
 #                     FORMS
 # ════════════════════════════════════════════════
-@users_bp.route('/add-user-form')
+@users_bp.route('/')
 def add_user_form():
     return render_template('add_user.html')
 
