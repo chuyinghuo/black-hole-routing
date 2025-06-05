@@ -45,9 +45,9 @@
             <th>ID</th>
             <th>IP Address</th>
             <th>Comment</th>
-            <th>User ID</th>
-            <th>Created At</th>
-            <th>Ending Date</th>
+            <th>Created By</th>
+            <th>Added At</th>
+            <th>Expires At</th>
             <th>Duration (hrs)</th>
             <th>Actions</th>
         </tr>
@@ -76,7 +76,7 @@
             <input type="text" class="form-control" id="updateComment">
           </div>
           <div class="mb-3">
-            <label for="updateEnding" class="form-label">Ending Date</label>
+            <label for="updateEnding" class="form-label">Expires At</label>
             <input type="datetime-local" class="form-control" id="updateEnding">
           </div>
         </div>
@@ -104,10 +104,10 @@
                     <td>${entry.id}</td>
                     <td>${entry.ip_address}</td>
                     <td>${entry.comment || ''}</td>
-                    <td>${entry.user_id || ''}</td>
-                    <td>${entry.created_at || ''}</td>
-                    <td>${entry.ending_date || ''}</td>
-                    <td>${entry.duration || ''}</td>
+                    <td>${entry.created_by || ''}</td>
+                    <td>${entry.added_at || ''}</td>
+                    <td>${entry.expires_at || ''}</td>
+                    <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
                     <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
                 </tr>
             `;
@@ -155,7 +155,7 @@
         const response = await fetch(API_PREFIX, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip_address: ip, comment, user_id: 'web_user', duration })
+            body: JSON.stringify({ ip_address: ip, comment, created_by: 1, duration })  // Replace 1 with actual user ID
         });
 
         const result = await response.json();
@@ -199,12 +199,12 @@
         const id = document.getElementById('updateId').value;
         const ip = document.getElementById('updateIP').value;
         const comment = document.getElementById('updateComment').value;
-        const ending = document.getElementById('updateEnding').value;
+        const expires = document.getElementById('updateEnding').value;
 
         const res = await fetch(`${API_PREFIX}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip_address: ip, comment: comment, ending_date: ending })
+            body: JSON.stringify({ ip_address: ip, comment: comment, expires_at: expires })
         });
 
         const result = await res.json();

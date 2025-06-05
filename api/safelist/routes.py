@@ -1,25 +1,23 @@
 from flask import Blueprint, request, jsonify, render_template
-from models import SafeList, db
-from datetime import datetime
+from models import Safelist, User, db
+from datetime import datetime, timedelta
 from markupsafe import escape
 import ipaddress
 import csv
 from io import StringIO
-from datetime import datetime, timedelta
-
 
 safelist_bp = Blueprint('safelist', __name__)
 
 @safelist_bp.route('/api/safelist', methods=['GET'])
 def get_safelist():
-    entries = SafeList.query.all()
+    entries = Safelist.query.all()
     return jsonify([{
         'id': entry.id,
         'ip_address': entry.ip_address,
-        'user_id': entry.user_id,
-        'created_at': entry.created_at.isoformat() if entry.created_at else None,
-        'ending_date': entry.ending_date.isoformat() if entry.ending_date else None,
-        'duration': entry.duration,
+        'created_by': entry.created_by,
+        'added_at': entry.added_at.isoformat() if entry.added_at else None,
+        'expires_at': entry.expires_at.isoformat() if entry.expires_at else None,
+        'duration': str(entry.duration),
         'comment': entry.comment
     } for entry in entries])
 
@@ -32,32 +30,40 @@ def add_ip():
     data = request.get_json()
     ip_address = data.get('ip_address')
     comment = escape(data.get('comment'))
-    user_id = data.get('user_id')
-    duration = data.get('duration')  # بالـ ساعات
+    created_by = data.get('created_by')
+    duration_input = data.get('duration')
+
     try:
         ipaddress.ip_network(ip_address, strict=False)
     except ValueError:
         return jsonify({'error': 'Invalid IP address or subnet'}), 400
 
-    if SafeList.query.filter_by(ip_address=ip_address).first():
+    if Safelist.query.filter_by(ip_address=ip_address).first():
         return jsonify({'error': 'IP already exists'}), 400
 
     try:
-        duration = int(duration)
+        duration_hours = int(duration_input)
+        duration = timedelta(hours=duration_hours)
     except (TypeError, ValueError):
         return jsonify({'error': 'Invalid duration value'}), 400
 
-    created_at = datetime.now()
-    ending_date = created_at + timedelta(hours=duration)
+    added_at = datetime.utcnow()
+    expires_at = added_at + duration
 
-    entry = SafeList(
+    entry = Safelist(
         ip_address=ip_address,
         comment=comment,
-        user_id=user_id,
-        created_at=created_at,
-        ending_date=ending_date,
+        added_at=added_at,
+        expires_at=expires_at,
         duration=duration
     )
+
+    # Only set `created_by` if the user ID exists in the users table
+    if created_by is not None:
+        user = db.session.get(User, created_by)
+        if user:
+            entry.created_by = created_by
+
     db.session.add(entry)
     db.session.commit()
     return jsonify({'message': 'IP added successfully'}), 201
@@ -91,11 +97,17 @@ def upload_csv():
             errors.append(f"Row {row_num}: Invalid IP '{ip_address}'")
             continue
 
-        if SafeList.query.filter_by(ip_address=ip_address).first():
+        if Safelist.query.filter_by(ip_address=ip_address).first():
             errors.append(f"Row {row_num}: IP '{ip_address}' already exists")
             continue
 
-        entry = SafeList(ip_address=ip_address, comment=comment)
+        entry = Safelist(
+            ip_address=ip_address,
+            comment=comment,
+            duration=timedelta(hours=24),
+            added_at=datetime.utcnow(),
+            expires_at=datetime.utcnow() + timedelta(hours=24)
+        )
         db.session.add(entry)
         added += 1
 
@@ -105,26 +117,26 @@ def upload_csv():
 @safelist_bp.route('/api/safelist/<string:entry_id>', methods=['PUT'])
 def edit_ip(entry_id):
     data = request.get_json()
-    entry = SafeList.query.get_or_404(entry_id)
+    entry = Safelist.query.get_or_404(entry_id)
 
     ip_address = data.get('ip_address')
     comment = data.get('comment')
-    ending_date_str = data.get('ending_date')
+    expires_at_str = data.get('expires_at')
 
     if ip_address:
         try:
             ipaddress.ip_address(ip_address)
         except ValueError:
             return jsonify({'error': 'Invalid IP address'}), 400
-        if SafeList.query.filter(SafeList.ip_address == ip_address, SafeList.id != entry_id).first():
+        if Safelist.query.filter(Safelist.ip_address == ip_address, Safelist.id != entry_id).first():
             return jsonify({'error': 'IP already exists'}), 400
         entry.ip_address = ip_address
 
-    if ending_date_str:
+    if expires_at_str:
         try:
-            entry.ending_date = datetime.fromisoformat(ending_date_str)
+            entry.expires_at = datetime.fromisoformat(expires_at_str)
         except ValueError:
-            return jsonify({'error': 'Invalid ending_date format'}), 400
+            return jsonify({'error': 'Invalid expires_at format'}), 400
 
     entry.comment = comment
     db.session.commit()
@@ -141,23 +153,23 @@ def search_ip():
     except ValueError:
         return jsonify({'error': 'Invalid IP address'}), 400
 
-    entry = SafeList.query.filter_by(ip_address=ip).first()
+    entry = Safelist.query.filter_by(ip_address=ip).first()
     if not entry:
         return jsonify({'message': 'IP not found'}), 404
 
     return jsonify({
         'id': entry.id,
         'ip_address': entry.ip_address,
-        'user_id': entry.user_id,
-        'created_at': entry.created_at.isoformat() if entry.created_at else None,
-        'ending_date': entry.ending_date.isoformat() if entry.ending_date else None,
-        'duration': entry.duration,
+        'created_by': entry.created_by,
+        'added_at': entry.added_at.isoformat() if entry.added_at else None,
+        'expires_at': entry.expires_at.isoformat() if entry.expires_at else None,
+        'duration': str(entry.duration),
         'comment': entry.comment
     })
 
 @safelist_bp.route('/api/safelist/<string:entry_id>', methods=['DELETE'])
 def delete_ip(entry_id):
-    entry = SafeList.query.get_or_404(entry_id)
+    entry = Safelist.query.get_or_404(entry_id)
     db.session.delete(entry)
     db.session.commit()
     return jsonify({'message': 'IP deleted successfully'})
@@ -169,7 +181,7 @@ def remove_ips():
     if not ids or not isinstance(ids, list):
         return jsonify({'error': 'A list of IDs is required'}), 400
 
-    entries = SafeList.query.filter(SafeList.id.in_(ids)).all()
+    entries = Safelist.query.filter(Safelist.id.in_(ids)).all()
     if not entries:
         return jsonify({'message': 'No matching entries found'}), 404
 
@@ -177,5 +189,3 @@ def remove_ips():
         db.session.delete(entry)
     db.session.commit()
     return jsonify({'message': f'Successfully removed {len(entries)} IP(s)'})
-
-

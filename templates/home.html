@@ -1,165 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>IP Blocklist</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <title>IP Blocklist</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body class="bg-light text-secondary">
 
 <div class="container my-5">
-    <h1 class="mb-4 text-dark">IP Blocklist</h1>
+  <h1 class="mb-4 text-dark">IP Blocklist</h1>
 
-    <!-- Add IP Form -->
-    <form method="POST" action="/blocklist/" class="row g-3 mb-5">
-        <div class="col-md-3">
-            <input type="text" name="ip" placeholder="IP (CIDR)" required class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <input type="number" name="num_blocks" placeholder="Num of Blocks" required class="form-control" />
-        </div>
-        <div class="col-md-3">
-            <input type="datetime-local" name="time_added" placeholder="Time Added" required id="time_added" class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <input type="number" name="duration" placeholder="Duration (hours)" required id="duration" class="form-control" />
-        </div>
-        <div class="col-md-4">
-            <input type="datetime-local" name="time_unblocked" placeholder="Time Unblocked" required id="time_unblocked" class="form-control" readonly />
-        </div>
-        <div class="col-md-3">
-            <input type="text" name="reason" placeholder="Reason" required class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <input type="text" name="netid" placeholder="NetID" required class="form-control" />
-        </div>
-        <div class="col-md-2 d-flex align-items-center">
-            <button type="submit" class="btn btn-primary w-100">Add</button>
-        </div>
-    </form>
-
-    <!-- Blocked IPs Table -->
-    <h2 class="mb-3 text-dark">Blocked IPs</h2>
-    <div class="table-responsive shadow-sm rounded bg-white">
-        <table class="table table-striped table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>IP</th>
-                    <th>Num of Blocks</th>
-                    <th>Time Added</th>
-                    <th>Time Unblocked</th>
-                    <th>Reason</th>
-                    <th>NetID</th>
-                    <th>Duration</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ip in ips %}
-                <tr>
-                    <td>{{ ip.ip }}</td>
-                    <td>{{ ip.num_blocks }}</td>
-                    <td>{{ ip.time_added }}</td>
-                    <td>{{ ip.time_unblocked }}</td>
-                    <td>{{ ip.reason }}</td>
-                    <td>{{ ip.netid }}</td>
-                    <td>{{ ip.duration }}</td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateModal{{ ip.api_token }}">Update</button>
-                        <form method="POST" action="/blocklist/delete" class="d-inline">
-                            <input type="hidden" name="api_token" value="{{ ip.api_token }}" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-
-                <!-- Update Modal -->
-                <div class="modal fade" id="updateModal{{ ip.api_token }}" tabindex="-1" aria-labelledby="updateModalLabel{{ ip.api_token }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <form method="POST" action="/blocklist/update">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Update IP Entry</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <input type="hidden" name="api_token" value="{{ ip.api_token }}" />
-                                    <div class="mb-3">
-                                        <label class="form-label">IP Address</label>
-                                        <input type="text" name="ip" value="{{ ip.ip }}" required class="form-control" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Num of Blocks</label>
-                                        <input type="number" name="num_blocks" value="{{ ip.num_blocks }}" required class="form-control" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Time Added</label>
-                                        <input type="datetime-local" name="time_added" value="{{ ip.time_added.strftime('%Y-%m-%dT%H:%M') if ip.time_added else '' }}" required class="form-control" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Duration (hours)</label>
-                                        <input type="number" name="duration" value="{{ ip.duration }}" required class="form-control" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Time Unblocked</label>
-                                        <input type="datetime-local" name="time_unblocked" value="{{ ip.time_unblocked.strftime('%Y-%m-%dT%H:%M') if ip.time_unblocked else '' }}" required class="form-control" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Reason</label>
-                                        <input type="text" name="reason" value="{{ ip.reason }}" required class="form-control" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">NetID</label>
-                                        <input type="text" name="netid" value="{{ ip.netid }}" required class="form-control" />
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </tbody>
-        </table>
+  <!-- Add IP Form -->
+  <form method="POST" action="/blocklist/" class="row g-3 mb-5">
+    <div class="col-md-3">
+      <input type="text" name="ip_address" placeholder="IP (CIDR)" required class="form-control" />
     </div>
+    <div class="col-md-2">
+      <input type="number" name="blocks_count" placeholder="Num of Blocks" required class="form-control" />
+    </div>
+    <div class="col-md-3">
+      <input type="datetime-local" name="time_added" placeholder="Time Added" required id="time_added" class="form-control" />
+    </div>
+    <div class="col-md-2">
+      <input type="number" name="duration" placeholder="Duration (hours)" required id="duration" class="form-control" />
+    </div>
+    <div class="col-md-4">
+      <input type="datetime-local" name="time_unblocked" placeholder="Time Unblocked" required id="time_unblocked" class="form-control" readonly />
+    </div>
+    <div class="col-md-3">
+      <input type="text" name="comment" placeholder="Reason" required class="form-control" />
+    </div>
+    <div class="col-md-2">
+      <input type="text" name="created_by" placeholder="User ID (optional)" class="form-control" />
+    </div>
+    <div class="col-md-2 d-flex align-items-center">
+      <button type="submit" class="btn btn-primary w-100">Add</button>
+    </div>
+  </form>
+
+  <!-- Blocked IPs Table -->
+  <h2 class="mb-3 text-dark">Blocked IPs</h2>
+  <div class="table-responsive shadow-sm rounded bg-white">
+    <table class="table table-striped table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>IP</th>
+          <th>Blocks</th>
+          <th>Added At</th>
+          <th>Expires At</th>
+          <th>Reason</th>
+          <th>User ID</th>
+          <th>Duration</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ip in ips %}
+        <tr>
+          <td>{{ ip.ip_address }}</td>
+          <td>{{ ip.blocks_count }}</td>
+          <td>{{ ip.added_at.strftime('%Y-%m-%dT%H:%M') if ip.added_at else '—' }}</td>
+          <td>{{ ip.expires_at.strftime('%Y-%m-%dT%H:%M') if ip.expires_at else '—' }}</td>
+          <td>{{ ip.comment }}</td>
+          <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
+          <td>{% if ip.duration %}{{ (ip.duration.total_seconds() // 3600)|int }} hr{% else %}—{% endif %}</td>
+          <td>
+            <form method="POST" action="/blocklist/delete" class="d-inline">
+              <input type="hidden" name="entry_id" value="{{ ip.id }}" />
+              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+            <button type="button" class="btn btn-sm btn-outline-warning" onclick="fillEditForm({{ ip.id }}, '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at.strftime('%Y-%m-%dT%H:%M') }}', '{{ ip.expires_at.strftime('%Y-%m-%dT%H:%M') }}', '{{ ip.comment }}', '{{ ip.created_by if ip.created_by else '' }}')" data-bs-toggle="modal" data-bs-target="#editModal">
+              Edit
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="/blocklist/update" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalLabel">Edit Block Entry</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="entry_id" id="edit_entry_id">
+        <div class="mb-3">
+          <label>IP Address</label>
+          <input type="text" class="form-control" name="ip_address" id="edit_ip_address" required>
+        </div>
+        <div class="mb-3">
+          <label>Blocks</label>
+          <input type="number" class="form-control" name="blocks_count" id="edit_blocks_count" required>
+        </div>
+        <div class="mb-3">
+          <label>Time Added</label>
+          <input type="datetime-local" class="form-control" name="time_added" id="edit_time_added" required>
+        </div>
+        <div class="mb-3">
+          <label>Time Unblocked</label>
+          <input type="datetime-local" class="form-control" name="time_unblocked" id="edit_time_unblocked" required>
+        </div>
+        <div class="mb-3">
+          <label>Reason</label>
+          <input type="text" class="form-control" name="comment" id="edit_comment">
+        </div>
+        <div class="mb-3">
+          <label>Created By (User ID)</label>
+          <input type="text" class="form-control" name="created_by" id="edit_created_by">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
+function fillEditForm(id, ip, blocks, added, expires, comment, userId) {
+  document.getElementById('edit_entry_id').value = id;
+  document.getElementById('edit_ip_address').value = ip;
+  document.getElementById('edit_blocks_count').value = blocks;
+  document.getElementById('edit_time_added').value = added;
+  document.getElementById('edit_time_unblocked').value = expires;
+  document.getElementById('edit_comment').value = comment;
+  document.getElementById('edit_created_by').value = userId;
+}
+
 function updateDuration() {
-    const start = document.getElementById('time_added').value;
-    const end = document.getElementById('time_unblocked').value;
-    if (start && end) {
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-        const diffMs = endDate - startDate;
-        if (diffMs >= 0) {
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            document.getElementById('duration').value = diffHours;
-        } else {
-            document.getElementById('duration').value = "";
-        }
+  const start = document.getElementById('time_added').value;
+  const end = document.getElementById('time_unblocked').value;
+  if (start && end) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate - startDate;
+    if (diffMs >= 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      document.getElementById('duration').value = diffHours;
+    } else {
+      document.getElementById('duration').value = "";
     }
+  }
 }
 
 function updateEndDate() {
-    const start = document.getElementById('time_added').value;
-    const duration = parseInt(document.getElementById('duration').value, 10);
-    if (start && !isNaN(duration)) {
-        const startDate = new Date(start);
-        startDate.setHours(startDate.getHours() + duration);
-        const pad = n => n.toString().padStart(2, '0');
-        const formatted = `${startDate.getFullYear()}-${pad(startDate.getMonth()+1)}-${pad(startDate.getDate())}T${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
-        document.getElementById('time_unblocked').value = formatted;
-    } else {
-        document.getElementById('time_unblocked').value = '';
-    }
+  const start = document.getElementById('time_added').value;
+  const duration = parseInt(document.getElementById('duration').value, 10);
+  if (start && !isNaN(duration)) {
+    const startDate = new Date(start);
+    startDate.setHours(startDate.getHours() + duration);
+    const pad = n => n.toString().padStart(2, '0');
+    const formatted = `${startDate.getFullYear()}-${pad(startDate.getMonth()+1)}-${pad(startDate.getDate())}T${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+    document.getElementById('time_unblocked').value = formatted;
+  } else {
+    document.getElementById('time_unblocked').value = '';
+  }
 }
 
 document.getElementById('time_added').addEventListener('change', () => {
-    updateEndDate();
-    updateDuration();
+  updateEndDate();
+  updateDuration();
 });
 
 document.getElementById('duration').addEventListener('input', updateEndDate);

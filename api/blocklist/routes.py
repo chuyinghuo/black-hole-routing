@@ -1,64 +1,118 @@
-import os
-import secrets
-from flask import Flask, render_template, request, redirect, Blueprint
+import ipaddress
+from flask import Blueprint, render_template, request, redirect
 from datetime import datetime, timedelta
-from models import db, IpBlocklist  
+from models import db, Blocklist, User
 
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 
 @blocklist_bp.route("/", methods=["GET", "POST"])
 def home():
-    ips = IpBlocklist.query.all()
-    if request.method == "POST":
-        try:
-            time_added = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
-            duration_hours = int(request.form.get("duration"))
+    try:
+        if request.method == "POST":
+            # Parse time fields
+            time_added_str = request.form.get("time_added")
+            duration_input = request.form.get("duration")
+            time_added = datetime.strptime(time_added_str, "%Y-%m-%dT%H:%M") if time_added_str else datetime.utcnow()
+
+            try:
+                duration_hours = int(duration_input)
+            except (ValueError, TypeError):
+                duration_hours = 24  # Default fallback
             duration = timedelta(hours=duration_hours)
             time_unblocked = time_added + duration
-            api_token = secrets.token_urlsafe(16)
-            ip_entry = IpBlocklist(
-                ip=request.form.get("ip"),
-                num_blocks=int(request.form.get("num_blocks")),
-                time_added=time_added,
-                time_unblocked=time_unblocked,
+
+            # IP address and block count
+            ip_address = request.form.get("ip_address")  
+            comment = request.form.get("comment") or ""  
+
+            try:
+                blocks_count = int(request.form.get("blocks_count"))  
+            except (ValueError, TypeError):
+                blocks_count = 1  # Default fallback
+
+            # Validate IP syntax
+            try:
+                ipaddress.ip_network(ip_address, strict=False)
+            except ValueError:
+                raise ValueError(f"Invalid IP or subnet: {ip_address}")
+
+            # created_by is optional and safe
+            created_by_input = request.form.get("created_by")
+            created_by = None
+            if created_by_input:
+                try:
+                    user_id = int(created_by_input)
+                    user = User.query.get(user_id)
+                    if user:
+                        created_by = user.id
+                except ValueError:
+                    created_by = None
+
+            ip_entry = Blocklist(
+                ip_address=ip_address,
+                blocks_count=blocks_count,
+                added_at=time_added,
+                expires_at=time_unblocked,
                 duration=duration,
-                reason=request.form.get("reason"),
-                netid=request.form.get("netid"),
-                api_token=api_token
+                comment=comment,
+                created_by=created_by
             )
             db.session.add(ip_entry)
             db.session.commit()
-        except Exception as e:
-            print(f"Error adding IP: {e}")
-        ips = IpBlocklist.query.all()
+        else:
+            db.session.rollback()
+    except Exception as e:
+        print(f"Error adding IP: {e}")
+        db.session.rollback()
+
+    ips = Blocklist.query.all()
     return render_template("home.html", ips=ips)
 
 @blocklist_bp.route("/update", methods=["POST"])
 def update():
-    api_token_value = request.form.get("api_token")
-    ip_entry = IpBlocklist.query.filter_by(api_token=api_token_value).first()
-    if ip_entry:
-        try:
-            ip_entry.ip = request.form.get("ip")
-            ip_entry.num_blocks = int(request.form.get("num_blocks"))
-            ip_entry.time_added = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
-            ip_entry.time_unblocked = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
-            ip_entry.duration = ip_entry.time_unblocked - ip_entry.time_added
-            ip_entry.reason = request.form.get("reason")
-            ip_entry.netid = request.form.get("netid")
+    try:
+        entry_id = request.form.get("entry_id")
+        ip_entry = Blocklist.query.get(entry_id)
+
+        if ip_entry:
+            ip_entry.ip_address = request.form.get("ip_address")  
+            ip_entry.comment = request.form.get("comment")  
+            ip_entry.added_at = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
+            ip_entry.expires_at = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
+            ip_entry.duration = ip_entry.expires_at - ip_entry.added_at
+
+            try:
+                ip_entry.blocks_count = int(request.form.get("blocks_count"))  
+            except (ValueError, TypeError):
+                ip_entry.blocks_count = 1
+
+            created_by_input = request.form.get("created_by")
+            if created_by_input:
+                try:
+                    user_id = int(created_by_input)
+                    user = User.query.get(user_id)
+                    if user:
+                        ip_entry.created_by = user.id
+                    else:
+                        ip_entry.created_by = None
+                except ValueError:
+                    ip_entry.created_by = None
+
             db.session.commit()
-        except Exception as e:
-            print(f"Error updating IP: {e}")
+    except Exception as e:
+        print(f"Error updating IP: {e}")
+        db.session.rollback()
     return redirect("/blocklist/")
 
 @blocklist_bp.route("/delete", methods=["POST"])
 def delete():
-    api_token_value = request.form.get("api_token")
-    ip_entry = IpBlocklist.query.filter_by(api_token=api_token_value).first()
-    if ip_entry:
-        try:
+    try:
+        entry_id = request.form.get("entry_id")
+        ip_entry = Blocklist.query.get(entry_id)
+        if ip_entry:
             db.session.delete(ip_entry)
             db.session.commit()
-        except Exception as e:
-            print(f"Error deleting IP: {e}")
+    except Exception as e:
+        print(f"Error deleting IP: {e}")
+        db.session.rollback()
     return redirect("/blocklist/")
