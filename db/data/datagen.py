@@ -49,11 +49,19 @@ def generate_blocklist(n, user_ids):
 def generate_safelist(n, user_ids):
     safelist = []
     for _ in range(n):
+        added = fake.date_time_this_year()
+        total_minutes = randint(30, 720)
+        hours = total_minutes // 60
+        minutes = total_minutes % 60
+        duration_str = f"{hours} hours {minutes} minutes" if hours > 0 else f"{minutes} minutes"
+
         safelist.append({
             "ip_address": fake.ipv4() if choice([True, False]) else fake.ipv6(),
             "created_by": choice(user_ids),
-            "added_at": fake.date_time_this_year().isoformat(),  # renamed from 'added'
-            "comment": fake.text(max_nb_chars=50)
+            "added_at": added.isoformat(),
+            "comment": fake.text(max_nb_chars=50),
+            "duration": duration_str,
+            "expires_at": (added + dt(minutes=total_minutes)).isoformat()
         })
     return safelist
 
@@ -124,7 +132,7 @@ def main():
     write_csv("Blocklist.csv", ["ip_address", "created_by", "comment", "added_at", "duration", "blocks_count", "expires_at"], blocklist)
 
     safelist = generate_safelist(10, user_ids)
-    write_csv("Safelist.csv", ["ip_address", "created_by", "added_at", "comment"], safelist)
+    write_csv("Safelist.csv", ["ip_address", "created_by", "added_at", "comment", "duration", "expires_at"], safelist)
 
     historical = generate_historical(15, user_ids)
     write_csv("Historical.csv", ["ip_address", "created_by", "comment", "added_at", "unblocked_at", "duration", "blocks_count"], historical)
