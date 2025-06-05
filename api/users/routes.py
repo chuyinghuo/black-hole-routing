@@ -1,5 +1,9 @@
 from flask import Blueprint, request, jsonify, render_template
-from models import db, User, UserRole
+import sys 
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from init_db import db
+from models import User, UserRole
 from datetime import datetime
 
 users_bp = Blueprint('users', __name__, template_folder='templates')

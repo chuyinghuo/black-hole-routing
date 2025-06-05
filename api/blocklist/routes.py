@@ -1,7 +1,14 @@
 import ipaddress
-from flask import Blueprint, render_template, request, redirect
+from flask import Blueprint, render_template, request, redirect, current_app
 from datetime import datetime, timedelta
-from models import db, Blocklist, User
+import sys
+import os
+
+# Add project root to sys.path for module access
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from init_db import db
+from models import Blocklist, User
 
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 
@@ -17,36 +24,34 @@ def home():
             try:
                 duration_hours = int(duration_input)
             except (ValueError, TypeError):
-                duration_hours = 24  # Default fallback
+                duration_hours = 24
             duration = timedelta(hours=duration_hours)
             time_unblocked = time_added + duration
 
-            # IP address and block count
-            ip_address = request.form.get("ip_address")  
-            comment = request.form.get("comment") or ""  
+            ip_address = request.form.get("ip_address")
+            comment = request.form.get("comment") or ""
 
             try:
-                blocks_count = int(request.form.get("blocks_count"))  
+                blocks_count = int(request.form.get("blocks_count"))
             except (ValueError, TypeError):
-                blocks_count = 1  # Default fallback
+                blocks_count = 1
 
-            # Validate IP syntax
             try:
                 ipaddress.ip_network(ip_address, strict=False)
             except ValueError:
                 raise ValueError(f"Invalid IP or subnet: {ip_address}")
 
-            # created_by is optional and safe
-            created_by_input = request.form.get("created_by")
             created_by = None
+            created_by_input = request.form.get("created_by")
             if created_by_input:
                 try:
                     user_id = int(created_by_input)
-                    user = User.query.get(user_id)
-                    if user:
-                        created_by = user.id
+                    with current_app.app_context():
+                        user = User.query.get(user_id)
+                        if user:
+                            created_by = user.id
                 except ValueError:
-                    created_by = None
+                    pass
 
             ip_entry = Blocklist(
                 ip_address=ip_address,
@@ -65,7 +70,13 @@ def home():
         print(f"Error adding IP: {e}")
         db.session.rollback()
 
-    ips = Blocklist.query.all()
+    # ✅ Safely query inside app context
+    try:
+        ips = Blocklist.query.all()
+    except Exception as e:
+        print(f"Error fetching IPs: {e}")
+        ips = []
+
     return render_template("home.html", ips=ips)
 
 @blocklist_bp.route("/update", methods=["POST"])
@@ -75,14 +86,14 @@ def update():
         ip_entry = Blocklist.query.get(entry_id)
 
         if ip_entry:
-            ip_entry.ip_address = request.form.get("ip_address")  
-            ip_entry.comment = request.form.get("comment")  
+            ip_entry.ip_address = request.form.get("ip_address")
+            ip_entry.comment = request.form.get("comment")
             ip_entry.added_at = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
             ip_entry.expires_at = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
             ip_entry.duration = ip_entry.expires_at - ip_entry.added_at
 
             try:
-                ip_entry.blocks_count = int(request.form.get("blocks_count"))  
+                ip_entry.blocks_count = int(request.form.get("blocks_count"))
             except (ValueError, TypeError):
                 ip_entry.blocks_count = 1
 
@@ -91,10 +102,7 @@ def update():
                 try:
                     user_id = int(created_by_input)
                     user = User.query.get(user_id)
-                    if user:
-                        ip_entry.created_by = user.id
-                    else:
-                        ip_entry.created_by = None
+                    ip_entry.created_by = user.id if user else None
                 except ValueError:
                     ip_entry.created_by = None
 
