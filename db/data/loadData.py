@@ -4,7 +4,8 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from models import User, Blocklist, Safelist, Historical, BlockHistory, UserToken, UserRole
 from init_db import db
-from app import app
+import app as flask_app_module
+app = flask_app_module.create_app()
 
 base_path = os.path.dirname(__file__)
 
@@ -12,16 +13,16 @@ def load_users():
     with app.app_context(), open(os.path.join(base_path, "Users.csv"), newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            if User.query.filter_by(user_id=row["user_id"]).first():
+            if User.query.filter_by(net_id=row["user_id"]).first():
                 continue
             db.session.add(User(
-                user_id=row["user_id"],
+                net_id=row["user_id"],
                 role=UserRole(row["role"]),
                 added_at=datetime.fromisoformat(row["added_at"]),
                 token=row["token"]
             ))
         db.session.commit()
-        print("Loaded Users ✅")
+        print("✅ Loaded Users")
 
 def load_blocklist():
     with app.app_context(), open(os.path.join(base_path, "Blocklist.csv"), newline='') as file:
@@ -40,7 +41,7 @@ def load_blocklist():
                 expires_at=datetime.fromisoformat(row["expires_at"])
             ))
         db.session.commit()
-        print("Loaded Blocklist ✅")
+        print("✅ Loaded Blocklist")
 
 def load_safelist():
     with app.app_context(), open(os.path.join(base_path, "Safelist.csv"), newline='') as file:
@@ -52,10 +53,12 @@ def load_safelist():
                 ip_address=row["ip_address"],
                 created_by=int(row["created_by"]),
                 added_at=datetime.fromisoformat(row["added_at"]),
-                comment=row["comment"]
+                comment=row["comment"],
+                duration=row["duration"],
+                expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None
             ))
         db.session.commit()
-        print("Loaded Safelist ✅")
+        print("✅ Loaded Safelist")
 
 def load_historical():
     with app.app_context(), open(os.path.join(base_path, "Historical.csv"), newline='') as file:
@@ -69,12 +72,12 @@ def load_historical():
                 created_by=int(row["created_by"]),
                 comment=row["comment"],
                 added_at=datetime.fromisoformat(row["added_at"]),
-                unblocked_at=datetime.fromisoformat(row["unblocked_at"]),
+                unblocked_at=datetime.fromisoformat(row["unblocked_at"]) if row["unblocked_at"] else None,
                 duration=row["duration"],
                 blocks_count=int(row["blocks_count"])
             ))
         db.session.commit()
-        print("Loaded Historical ✅")
+        print("✅ Loaded Historical")
 
 def load_block_history():
     with app.app_context(), open(os.path.join(base_path, "BlockHistory.csv"), newline='') as file:
@@ -88,10 +91,10 @@ def load_block_history():
                 created_by=int(row["created_by"]),
                 comment=row["comment"],
                 added_at=datetime.fromisoformat(row["added_at"]),
-                unblocked_at=datetime.fromisoformat(row["unblocked_at"])
+                unblocked_at=datetime.fromisoformat(row["unblocked_at"]) if row["unblocked_at"] else None
             ))
         db.session.commit()
-        print("Loaded BlockHistory ✅")
+        print("✅ Loaded BlockHistory")
 
 def load_user_tokens():
     with app.app_context(), open(os.path.join(base_path, "UserTokens.csv"), newline='') as file:
@@ -101,13 +104,13 @@ def load_user_tokens():
                 continue
             db.session.add(UserToken(
                 token=row["token"],
-                user_id=int(row["user_id"]),
+                net_id=int(row["user_id"]),
                 created_at=datetime.fromisoformat(row["created_at"]),
-                revoked=row["revoked"].lower() == "true",
-                purpose=row["purpose"]
+                revoked=row["revoked"].lower() == "true"
+                # purpose removed
             ))
         db.session.commit()
-        print("Loaded UserTokens ✅")
+        print("✅ Loaded UserTokens")
 
 def load_all():
     load_users()
