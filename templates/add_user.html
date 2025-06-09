@@ -4,6 +4,17 @@
   <meta charset="UTF-8" />
   <title>User Management</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    thead a {
+      color: white;
+      text-decoration: none;
+    }
+
+    thead a:hover {
+      text-decoration: underline;
+      color: #f8f9fa;
+    }
+  </style>
 </head>
 <body class="bg-light">
 <div class="container mt-5">
@@ -32,15 +43,24 @@
 
   <p id="message" class="fw-bold"></p>
 
-  <!-- Filter Users -->
-  <div class="mb-3">
-    <label for="roleFilter" class="form-label">Filter by Role</label>
-    <select class="form-select w-auto" id="roleFilter">
-      <option value="">All Roles</option>
-      <option value="admin">Admin</option>
-      <option value="editor">Editor</option>
-      <option value="viewer">Viewer</option>
-    </select>
+  <!-- Search and Filter Row -->
+  <div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+      <label for="searchInput" class="form-label">Search by Net ID</label>
+      <div class="d-flex">
+        <input type="text" class="form-control w-auto me-2" id="searchInput" placeholder="Enter Net ID" />
+        <button class="btn btn-secondary" onclick="loadUsers()">Search</button>
+      </div>
+    </div>
+    <div>
+      <label for="roleFilter" class="form-label">Filter by Role</label>
+      <select class="form-select w-auto" id="roleFilter">
+        <option value="">All Roles</option>
+        <option value="admin">Admin</option>
+        <option value="editor">Editor</option>
+        <option value="viewer">Viewer</option>
+      </select>
+    </div>
   </div>
 
   <h2>All Users</h2>
@@ -48,10 +68,10 @@
     <table class="table table-bordered table-striped align-middle" id="usersTable">
       <thead class="table-dark">
         <tr>
-          <th>ID</th>
-          <th>Net ID</th>
-          <th>Role</th>
-          <th>Time Added</th>
+          <th><a href="#" onclick="event.preventDefault(); setSort('id')">ID <span id="sort-id"></span></a></th>
+          <th><a href="#" onclick="event.preventDefault(); setSort('net_id')">Net ID <span id="sort-net_id"></span></a></th>
+          <th><a href="#" onclick="event.preventDefault(); setSort('role')">Role <span id="sort-role"></span></a></th>
+          <th><a href="#" onclick="event.preventDefault(); setSort('added_at')">Time Added <span id="sort-added_at"></span></a></th>
           <th>Token</th>
           <th>Actions</th>
         </tr>
@@ -101,6 +121,9 @@ const form = document.getElementById("userForm");
 const messageEl = document.getElementById("message");
 const usersTableBody = document.querySelector("#usersTable tbody");
 
+let currentSortField = 'id';
+let currentSortOrder = 'asc';
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const net_id = form.net_id.value.trim();
@@ -121,12 +144,34 @@ form.addEventListener("submit", async (e) => {
   res.ok ? (showMessage("User added.", "success"), form.reset(), loadUsers()) : showMessage(data.error, "danger");
 });
 
+function setSort(field) {
+  if (currentSortField === field) {
+    currentSortOrder = currentSortOrder === "asc" ? "desc" : "asc";
+  } else {
+    currentSortField = field;
+    currentSortOrder = "asc";
+  }
+  loadUsers();
+}
+
 async function loadUsers() {
   const role = document.getElementById("roleFilter").value;
-  const url = role ? `${API_PREFIX}/users?role=${role}` : `${API_PREFIX}/users`;
-  const res = await fetch(url);
+  const search = document.getElementById("searchInput").value.trim();
+
+  const params = new URLSearchParams();
+  if (role) params.append("role", role);
+  if (search) params.append("search", search);
+  params.append("sort", currentSortField);
+  params.append("order", currentSortOrder);
+
+  const res = await fetch(`${API_PREFIX}/users?${params.toString()}`);
   const data = await res.json();
   usersTableBody.innerHTML = "";
+
+  document.querySelectorAll("thead span").forEach(el => el.textContent = "");
+  const arrow = currentSortOrder === "asc" ? "↑" : "↓";
+  const indicator = document.getElementById(`sort-${currentSortField}`);
+  if (indicator) indicator.textContent = arrow;
 
   data.users.forEach(user => {
     const row = document.createElement("tr");
@@ -193,7 +238,6 @@ function showMessage(msg, type = "info") {
 }
 
 document.getElementById("roleFilter").addEventListener("change", loadUsers);
-
 loadUsers();
 </script>
 

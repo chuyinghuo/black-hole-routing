@@ -45,14 +45,36 @@ def add_user():
 def get_users():
     try:
         role_filter = request.args.get('role')
+        search_term = request.args.get('search', '').strip()
+        sort_field = request.args.get('sort', 'id')
+        sort_order = request.args.get('order', 'asc')
+
+        sort_options = {
+            "id": User.id,
+            "net_id": User.net_id,
+            "role": User.role,
+            "added_at": User.added_at
+        }
+
+        if sort_field not in sort_options:
+            return jsonify({"error": "Invalid sort field"}), 400
+
+        sort_column = sort_options[sort_field]
+        sort_column = sort_column.desc() if sort_order == 'desc' else sort_column.asc()
+
+        query = User.query
+
         if role_filter:
             try:
                 role_enum = UserRole(role_filter)
-                users = User.query.filter_by(role=role_enum).all()
+                query = query.filter_by(role=role_enum)
             except ValueError:
                 return jsonify({"error": "Invalid role filter"}), 400
-        else:
-            users = User.query.all()
+
+        if search_term:
+            query = query.filter(User.net_id.ilike(f"%{search_term}%"))
+
+        users = query.order_by(sort_column).all()
 
         data = [{
             "id": user.id,
