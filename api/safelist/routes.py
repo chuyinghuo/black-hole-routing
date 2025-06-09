@@ -14,17 +14,15 @@ safelist_bp = Blueprint('safelist', __name__)
 
 @safelist_bp.route('/api/safelist', methods=['GET'])
 def get_safelist():
-    from flask import current_app
-    print(f"[DEBUG] App context active: {current_app.name}")
     entries = Safelist.query.all()
     return jsonify([
         {
             'id': entry.id,
             'ip_address': entry.ip_address,
             'created_by': entry.created_by,
-            'added_at': entry.added_at.isoformat() if entry.added_at else None,
-            'expires_at': entry.expires_at.isoformat() if entry.expires_at else None,
-            'duration': str(entry.duration),
+            'added_at': entry.added_at.strftime('%m/%d/%y, %I:%M %p') if entry.added_at else None,
+            'expires_at': entry.expires_at.strftime('%m/%d/%y, %I:%M %p') if entry.expires_at else None,
+            'duration': round(entry.duration.total_seconds() / 3600, 2),  # in hours
             'comment': entry.comment
         }
         for entry in entries
@@ -97,11 +95,13 @@ def upload_csv():
     for row_num, row in enumerate(csv_input, start=1):
         if not row:
             continue
+
         ip_address = row[0].strip()
         comment = row[1].strip() if len(row) > 1 else ""
+        duration_input = row[2].strip() if len(row) > 2 else "24"
 
         try:
-            ipaddress.ip_address(ip_address)
+            ipaddress.ip_network(ip_address, strict=False)
         except ValueError:
             errors.append(f"Row {row_num}: Invalid IP '{ip_address}'")
             continue
@@ -110,19 +110,30 @@ def upload_csv():
             errors.append(f"Row {row_num}: IP '{ip_address}' already exists")
             continue
 
+        try:
+            duration_hours = int(duration_input)
+        except (ValueError, TypeError):
+            errors.append(f"Row {row_num}: Invalid duration '{duration_input}'")
+            continue
+
         now = datetime.now(timezone.utc)
+        duration = timedelta(hours=duration_hours)
+        expires_at = now + duration
+
         entry = Safelist(
             ip_address=ip_address,
             comment=comment,
             added_at=now,
-            expires_at=now + timedelta(hours=24),
-            duration=timedelta(hours=24)
+            expires_at=expires_at,
+            duration=duration
         )
+
         db.session.add(entry)
         added += 1
 
     db.session.commit()
     return jsonify({'message': f'{added} IP(s) added', 'errors': errors})
+
 
 @safelist_bp.route('/api/safelist/<int:entry_id>', methods=['PUT'])
 def edit_ip(entry_id):
