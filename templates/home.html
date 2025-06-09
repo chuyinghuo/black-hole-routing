@@ -11,7 +11,7 @@
   <h1 class="mb-4 text-dark">IP Blocklist</h1>
 
   <!-- Add IP Form -->
-  <form method="POST" action="/blocklist/" class="row g-3 mb-5">
+  <form method="POST" action="/blocklist/" class="row g-3 mb-4">
     <div class="col-md-3">
       <input type="text" name="ip_address" placeholder="IP (CIDR)" required class="form-control" />
     </div>
@@ -38,6 +38,21 @@
     </div>
   </form>
 
+  <!-- Upload CSV Form -->
+  <form id="uploadCSVForm" class="mb-4" enctype="multipart/form-data">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <input type="file" name="file" id="csvFile" accept=".csv" required class="form-control" />
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-secondary w-100">Upload CSV</button>
+      </div>
+      <div class="col-md-3">
+        <div id="uploadMessage" class="text-success fw-bold"></div>
+      </div>
+    </div>
+  </form>
+
   <!-- Blocked IPs Table -->
   <h2 class="mb-3 text-dark">Blocked IPs</h2>
   <div class="table-responsive shadow-sm rounded bg-white">
@@ -59,8 +74,8 @@
         <tr>
           <td>{{ ip.ip_address }}</td>
           <td>{{ ip.blocks_count }}</td>
-          <td>{{ ip.added_at.strftime('%Y-%m-%dT%H:%M') if ip.added_at else '—' }}</td>
-          <td>{{ ip.expires_at.strftime('%Y-%m-%dT%H:%M') if ip.expires_at else '—' }}</td>
+          <td>{{ ip.added_at.strftime('%m/%d/%y, %I:%M %p') if ip.added_at else '—' }}</td>
+          <td>{{ ip.expires_at.strftime('%m/%d/%y, %I:%M %p') if ip.expires_at else '—' }}</td>
           <td>{{ ip.comment }}</td>
           <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
           <td>{% if ip.duration %}{{ (ip.duration.total_seconds() // 3600)|int }} hr{% else %}—{% endif %}</td>
@@ -169,6 +184,44 @@ document.getElementById('time_added').addEventListener('change', () => {
 });
 
 document.getElementById('duration').addEventListener('input', updateEndDate);
+
+// CSV Upload handling
+document.getElementById('uploadCSVForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fileInput = document.getElementById('csvFile');
+  if (!fileInput.files.length) {
+    alert('Please select a CSV file.');
+    return;
+  }
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const response = await fetch('/blocklist/upload_csv', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    const msgEl = document.getElementById('uploadMessage');
+    if (response.ok) {
+      msgEl.textContent = result.message || 'CSV uploaded successfully.';
+      msgEl.classList.remove('text-danger');
+      msgEl.classList.add('text-success');
+      // Optionally refresh the page or update the table via JS
+      setTimeout(() => { location.reload(); }, 1500);
+    } else {
+      msgEl.textContent = result.error || 'Failed to upload CSV.';
+      msgEl.classList.remove('text-success');
+      msgEl.classList.add('text-danger');
+    }
+  } catch (err) {
+    const msgEl = document.getElementById('uploadMessage');
+    msgEl.textContent = 'Error uploading CSV.';
+    msgEl.classList.remove('text-success');
+    msgEl.classList.add('text-danger');
+  }
+});
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
