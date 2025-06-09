@@ -8,12 +8,10 @@ from datetime import datetime
 
 users_bp = Blueprint('users', __name__, template_folder='templates')
 
-# ───────────── ROUTE: Render Add User Form ─────────────
 @users_bp.route('/')
 def add_user_form():
     return render_template('add_user.html')
 
-# ───────────── ROUTE: Create New User ─────────────
 @users_bp.route('/add-user', methods=['POST'])
 def add_user():
     data = request.get_json()
@@ -21,17 +19,14 @@ def add_user():
     if not all(field in data for field in required_fields):
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Check uniqueness
     if db.session.query(User).filter_by(net_id=data["net_id"]).first():
         return jsonify({"error": "User with this net_id already exists"}), 409
 
-    # Validate role
     try:
         role = UserRole(data['role'])
     except ValueError:
         return jsonify({"error": "Invalid role"}), 400
 
-    # Create user (token will be hashed automatically via validator)
     try:
         new_user = User(
             net_id=data["net_id"],
@@ -46,11 +41,19 @@ def add_user():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# ───────────── ROUTE: Read All Users ─────────────
 @users_bp.route('/users', methods=['GET'])
 def get_users():
     try:
-        users = User.query.all()
+        role_filter = request.args.get('role')
+        if role_filter:
+            try:
+                role_enum = UserRole(role_filter)
+                users = User.query.filter_by(role=role_enum).all()
+            except ValueError:
+                return jsonify({"error": "Invalid role filter"}), 400
+        else:
+            users = User.query.all()
+
         data = [{
             "id": user.id,
             "net_id": user.net_id,
@@ -62,7 +65,6 @@ def get_users():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ───────────── ROUTE: Update User ─────────────
 @users_bp.route('/edit/user/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
     user = User.query.get(user_id)
@@ -78,7 +80,7 @@ def update_user(user_id):
         except ValueError:
             return jsonify({"error": "Invalid role"}), 400
     if "token" in data:
-        user.token = data["token"]  # Auto-hashed in validator
+        user.token = data["token"]
 
     try:
         db.session.commit()
@@ -87,7 +89,6 @@ def update_user(user_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# ───────────── ROUTE: Delete User ─────────────
 @users_bp.route('/remove-user/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
     user = User.query.get(user_id)

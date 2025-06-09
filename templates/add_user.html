@@ -32,6 +32,17 @@
 
   <p id="message" class="fw-bold"></p>
 
+  <!-- Filter Users -->
+  <div class="mb-3">
+    <label for="roleFilter" class="form-label">Filter by Role</label>
+    <select class="form-select w-auto" id="roleFilter">
+      <option value="">All Roles</option>
+      <option value="admin">Admin</option>
+      <option value="editor">Editor</option>
+      <option value="viewer">Viewer</option>
+    </select>
+  </div>
+
   <h2>All Users</h2>
   <div class="table-responsive">
     <table class="table table-bordered table-striped align-middle" id="usersTable">
@@ -111,7 +122,9 @@ form.addEventListener("submit", async (e) => {
 });
 
 async function loadUsers() {
-  const res = await fetch(`${API_PREFIX}/users`);
+  const role = document.getElementById("roleFilter").value;
+  const url = role ? `${API_PREFIX}/users?role=${role}` : `${API_PREFIX}/users`;
+  const res = await fetch(url);
   const data = await res.json();
   usersTableBody.innerHTML = "";
 
@@ -178,6 +191,8 @@ function showMessage(msg, type = "info") {
     messageEl.className = "";
   }, 4000);
 }
+
+document.getElementById("roleFilter").addEventListener("change", loadUsers);
 
 loadUsers();
 </script>
