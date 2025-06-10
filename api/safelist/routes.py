@@ -3,7 +3,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 from flask import Blueprint, request, jsonify, render_template
 from init_db import db
-from models import Safelist, User
+from models import Safelist, User , Blocklist
 from datetime import datetime, timedelta, timezone
 from markupsafe import escape
 import ipaddress
@@ -47,6 +47,10 @@ def add_ip():
 
     if Safelist.query.filter_by(ip_address=ip_address).first():
         return jsonify({'error': 'IP already exists'}), 400
+    
+    if Blocklist.query.filter_by(ip_address=ip_address).first():
+        return jsonify({'error': 'IP already exists in blocklist , delete it from blocklist before adding to safelist'}), 400
+
 
     try:
         duration_hours = int(duration_input)

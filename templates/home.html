@@ -5,216 +5,195 @@
   <title>Blocklist IP Manager</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
-<body class="bg-light">
+<body class="bg-light text-secondary">
 <div class="container mt-5">
-  <h2 class="mb-4">Add IP to Blocklist</h2>
+  <h2 class="mb-4 text-dark">Add IP to Blocklist</h2>
 
-  <form id="ipForm" class="row g-3 mb-4" action="/blocklist" method="POST">
-    <div class="col-md-3">
-      <label for="ip_address" class="form-label">IP Address</label>
-      <input type="text" class="form-control" id="ip_address" required />
+  <!-- Add IP Form -->
+  <form method="POST" action="/blocklist/" class="row g-3 mb-4">
+    <div class="col-md-4">
+      <input type="text" name="ip_address" class="form-control" placeholder="IP (CIDR)" required>
     </div>
     <div class="col-md-3">
-      <label for="comment" class="form-label">Comment</label>
-      <input type="text" class="form-control" id="comment" />
+      <input type="number" name="blocks_count" class="form-control" placeholder="Num of Blocks" required>
+    </div>
+    <div class="col-md-3">
+      <input type="datetime-local" name="time_added" id="time_added" class="form-control" placeholder="Time Added" required>
     </div>
     <div class="col-md-2">
-      <label for="duration" class="form-label">Duration (hours)</label>
-      <input type="number" class="form-control" id="duration" required />
+      <input type="number" name="duration" id="duration" class="form-control" placeholder="Duration (hr)" required>
+    </div>
+    <div class="col-md-4">
+      <input type="datetime-local" name="time_unblocked" id="time_unblocked" class="form-control" placeholder="Time Unblocked" required readonly>
+    </div>
+    <div class="col-md-5">
+      <input type="text" name="comment" class="form-control" placeholder="Reason" required>
+    </div>
+    <div class="col-md-3">
+      <input type="text" name="created_by" class="form-control" placeholder="User ID (optional)">
     </div>
     <div class="col-md-2">
-      <label for="blocks_count" class="form-label">Blocks Count</label>
-      <input type="number" class="form-control" id="blocks_count" value="1" required />
-    </div>
-    <div class="col-md-2 d-flex align-items-end">
-      <button type="submit" class="btn btn-danger w-100">Block IP</button>
+      <button type="submit" class="btn btn-primary w-100">Add</button>
     </div>
   </form>
 
-  <div id="message" class="mb-4 text-success fw-bold"></div>
-
-  <h3>Blocklist Table</h3>
-
-  <form id="uploadForm" class="mb-3" enctype="multipart/form-data">
-    <input type="file" name="file" id="csvFile" accept=".csv" class="form-control mb-2" required />
-    <button type="submit" class="btn btn-secondary">Upload CSV</button>
+  <!-- CSV Upload -->
+  <form id="uploadCSVForm" class="mb-5" enctype="multipart/form-data">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <input type="file" name="file" id="csvFile" accept=".csv" required class="form-control">
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-secondary w-100">Upload CSV</button>
+      </div>
+      <div class="col-md-3">
+        <div id="uploadMessage" class="fw-bold"></div>
+      </div>
+    </div>
   </form>
 
-  <button id="deleteSelected" class="btn btn-danger mb-3" disabled>Delete Selected</button>
-
-  <table class="table table-bordered table-striped" id="ipTable">
-    <thead class="table-dark">
-    <tr>
-      <th><input type="checkbox" id="selectAll" /></th>
-      <th>ID</th>
-      <th>IP Address</th>
-      <th>Comment</th>
-      <th>Created By</th>
-      <th>Added At</th>
-      <th>Expires At</th>
-      <th>Duration (hrs)</th>
-      <th>Blocks</th>
-      <th>Actions</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-
-<!-- Modal for Update -->
-<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="updateForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="updateModalLabel">Update IP Entry</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="updateId">
-          <div class="mb-3">
-            <label for="updateIP" class="form-label">IP Address</label>
-            <input type="text" class="form-control" id="updateIP" required>
-          </div>
-          <div class="mb-3">
-            <label for="updateComment" class="form-label">Comment</label>
-            <input type="text" class="form-control" id="updateComment">
-          </div>
-          <div class="mb-3">
-            <label for="updateEnding" class="form-label">Expires At</label>
-            <input type="datetime-local" class="form-control" id="updateEnding">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-        </div>
-      </form>
-    </div>
+  <!-- Table -->
+  <h3 class="mb-3 text-dark">Blocked IPs</h3>
+  <div class="table-responsive bg-white shadow-sm rounded">
+    <table class="table table-striped align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>IP</th>
+          <th>Blocks</th>
+          <th>Added</th>
+          <th>Expires</th>
+          <th>Reason</th>
+          <th>User ID</th>
+          <th>Duration</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ip in ips %}
+        <tr>
+          <td>{{ ip.ip_address }}</td>
+          <td>{{ ip.blocks_count }}</td>
+          <td>{{ ip.added_at.strftime('%m/%d/%y, %I:%M %p') if ip.added_at else '—' }}</td>
+          <td>{{ ip.expires_at.strftime('%m/%d/%y, %I:%M %p') if ip.expires_at else '—' }}</td>
+          <td>{{ ip.comment }}</td>
+          <td>{{ ip.created_by if ip.created_by else '—' }}</td>
+          <td>{% if ip.duration %}{{ (ip.duration.total_seconds() // 3600)|int }} hr{% else %}—{% endif %}</td>
+          <td>
+            <form method="POST" action="/blocklist/delete" class="d-inline">
+              <input type="hidden" name="entry_id" value="{{ ip.id }}">
+              <button class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+            <button class="btn btn-sm btn-outline-warning" onclick="fillEditForm({{ ip.id }}, '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at.strftime('%Y-%m-%dT%H:%M') }}', '{{ ip.expires_at.strftime('%Y-%m-%dT%H:%M') }}', '{{ ip.comment }}', '{{ ip.created_by if ip.created_by else '' }}')" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="POST" action="/blocklist/update" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Block Entry</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="entry_id" id="edit_entry_id">
+        <div class="mb-3">
+          <label class="form-label">IP Address</label>
+          <input type="text" name="ip_address" id="edit_ip_address" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Blocks</label>
+          <input type="number" name="blocks_count" id="edit_blocks_count" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Time Added</label>
+          <input type="datetime-local" name="time_added" id="edit_time_added" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Time Unblocked</label>
+          <input type="datetime-local" name="time_unblocked" id="edit_time_unblocked" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Reason</label>
+          <input type="text" name="comment" id="edit_comment" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Created By (User ID)</label>
+          <input type="text" name="created_by" id="edit_created_by" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- JavaScript -->
 <script>
-  const API_PREFIX = "/blocklist/api/blocklist";
+function fillEditForm(id, ip, blocks, added, expires, comment, userId) {
+  document.getElementById('edit_entry_id').value = id;
+  document.getElementById('edit_ip_address').value = ip;
+  document.getElementById('edit_blocks_count').value = blocks;
+  document.getElementById('edit_time_added').value = added;
+  document.getElementById('edit_time_unblocked').value = expires;
+  document.getElementById('edit_comment').value = comment;
+  document.getElementById('edit_created_by').value = userId;
+}
 
-  async function fetchBlocklist() {
-    const response = await fetch(API_PREFIX);
-    const data = await response.json();
-    const tableBody = document.querySelector('#ipTable tbody');
-    tableBody.innerHTML = '';
-
-    data.forEach(entry => {
-      const row = `
-        <tr>
-          <td><input type="checkbox" class="rowCheckbox" data-id="${entry.id}" /></td>
-          <td>${entry.id}</td>
-          <td>${entry.ip_address}</td>
-          <td>${entry.comment || ''}</td>
-          <td>${entry.created_by || ''}</td>
-          <td>${entry.added_at || ''}</td>
-          <td>${entry.expires_at || ''}</td>
-          <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
-          <td>${entry.blocks_count || 1}</td>
-          <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
-        </tr>`;
-      tableBody.innerHTML += row;
-    });
-
-    updateDeleteButtonState();
-    document.querySelectorAll('.rowCheckbox').forEach(cb => {
-      cb.addEventListener('change', updateDeleteButtonState);
-    });
-
-    document.querySelectorAll('.updateBtn').forEach(button => {
-      button.addEventListener('click', (e) => {
-        const id = e.target.dataset.id;
-        const row = e.target.closest('tr');
-        document.getElementById('updateId').value = id;
-        document.getElementById('updateIP').value = row.children[2].textContent.trim();
-        document.getElementById('updateComment').value = row.children[3].textContent.trim();
-        const rawDate = row.children[6].textContent.trim();
-        const dt = new Date(rawDate);
-        document.getElementById('updateEnding').value = !isNaN(dt) ? dt.toISOString().slice(0, 16) : '';
-        const modal = new bootstrap.Modal(document.getElementById('updateModal'));
-        modal.show();
-      });
-    });
-  }
-
-  function updateDeleteButtonState() {
-    const checkboxes = document.querySelectorAll('.rowCheckbox:checked');
-    document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
-  }
-
-  document.getElementById('ipForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const ip = document.getElementById('ip_address').value;
-    const comment = document.getElementById('comment').value;
-    const duration = document.getElementById('duration').value;
-    const blocks_count = document.getElementById('blocks_count').value;
-
-    const response = await fetch(API_PREFIX, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip_address: ip, comment, duration, blocks_count, created_by: 1 })
-    });
-
-    const result = await response.json();
-    document.getElementById('message').textContent = result.message || result.error || '';
-    fetchBlocklist();
-    e.target.reset();
-  });
-
-  document.getElementById('selectAll').addEventListener('change', (e) => {
-    const checked = e.target.checked;
-    document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = checked);
-    updateDeleteButtonState();
-  });
-
-  document.getElementById('deleteSelected').addEventListener('click', async () => {
-    const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
-    for (let id of ids) {
-      await fetch(`${API_PREFIX}/${id}`, { method: 'DELETE' });
+function updateDuration() {
+  const start = document.getElementById('time_added').value;
+  const end = document.getElementById('time_unblocked').value;
+  if (start && end) {
+    const diffMs = new Date(end) - new Date(start);
+    if (diffMs >= 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      document.getElementById('duration').value = diffHours;
     }
-    fetchBlocklist();
-  });
+  }
+}
 
-  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fileInput = document.getElementById('csvFile');
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
+function updateEndDate() {
+  const start = document.getElementById('time_added').value;
+  const duration = parseInt(document.getElementById('duration').value, 10);
+  if (start && !isNaN(duration)) {
+    const end = new Date(start);
+    end.setHours(end.getHours() + duration);
+    document.getElementById('time_unblocked').value = end.toISOString().slice(0, 16);
+  }
+}
 
-    const response = await fetch(`${API_PREFIX}/upload`, {
-      method: 'POST',
-      body: formData
-    });
+document.getElementById('time_added').addEventListener('change', () => {
+  updateEndDate();
+  updateDuration();
+});
+document.getElementById('duration').addEventListener('input', updateEndDate);
 
-    const result = await response.json();
-    document.getElementById('message').textContent = result.message || result.error || '';
-    fetchBlocklist();
-  });
+// CSV Upload
+document.getElementById('uploadCSVForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const file = document.getElementById('csvFile').files[0];
+  if (!file) return alert("Select a file");
+  const formData = new FormData();
+  formData.append("file", file);
 
-  document.getElementById('updateForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('updateId').value;
-    const ip = document.getElementById('updateIP').value;
-    const comment = document.getElementById('updateComment').value;
-    const expires = document.getElementById('updateEnding').value;
-
-    const res = await fetch(`${API_PREFIX}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip_address: ip, comment, expires_at: expires })
-    });
-
-    const result = await res.json();
-    document.getElementById('message').textContent = result.message || result.error || '';
-
-    bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
-    fetchBlocklist();
-  });
-
-  fetchBlocklist();
+  const msg = document.getElementById('uploadMessage');
+  try {
+    const res = await fetch('/blocklist/upload_csv', { method: 'POST', body: formData });
+    const data = await res.json();
+    msg.textContent = res.ok ? data.message || "Upload successful" : data.error || "Upload failed";
+    msg.className = res.ok ? "text-success fw-bold" : "text-danger fw-bold";
+    if (res.ok) setTimeout(() => location.reload(), 1500);
+  } catch {
+    msg.textContent = "Error uploading CSV";
+    msg.className = "text-danger fw-bold";
+  }
+});
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

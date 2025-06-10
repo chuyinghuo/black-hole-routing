@@ -1,124 +1,141 @@
 import ipaddress
-from flask import Blueprint, render_template, request, redirect, current_app, jsonify
+from flask import Blueprint, render_template, request, redirect, current_app
+from datetime import datetime, timedelta
+import sys
+import os
+from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta, timezone
+import ipaddress
 from io import StringIO
 import csv
 from init_db import db
-from models import Blocklist, User
+from models import Blocklist, User ,Safelist
+
+# Add project root to sys.path for module access
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 
-# صفحة الـ HTML الرئيسية
-@blocklist_bp.route("/", methods=["GET"])
+@blocklist_bp.route("/", methods=["GET", "POST"])
 def home():
-    return render_template("home.html")
+    try:
+        if request.method == "POST":
+            # Parse time fields
+            time_added_str = request.form.get("time_added")
+            duration_input = request.form.get("duration")
+            time_added = datetime.strptime(time_added_str, "%Y-%m-%dT%H:%M") if time_added_str else datetime.utcnow()
 
-
-# API مسار لإدارة الـ blocklist entries
-@blocklist_bp.route("/api/blocklist", methods=["GET", "POST"])
-def api_blocklist():
-    if request.method == "GET":
-        try:
-            ips = Blocklist.query.all()
-            data = []
-            for ip in ips:
-                data.append({
-                    "id": ip.id,
-                    "ip_address": ip.ip_address,
-                    "comment": ip.comment,
-                    "created_by": ip.created_by,
-                    "added_at": ip.added_at.strftime('%Y-%m-%d %H:%M:%S') if ip.added_at else None,
-                    "expires_at": ip.expires_at.strftime('%Y-%m-%d %H:%M:%S') if ip.expires_at else None,
-                    "duration": ip.duration.total_seconds() / 3600 if ip.duration else None,
-                    "blocks_count": ip.blocks_count or 1
-                })
-            return jsonify(data)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    elif request.method == "POST":
-        data = request.get_json()
-        try:
-            ip_address = data.get("ip_address")
-            comment = data.get("comment", "")
-            duration_hours = int(data.get("duration", 24))
-            blocks_count = int(data.get("blocks_count", 1))
-            created_by = data.get("created_by")
-
-            # تحقق من صحة IP
-            ipaddress.ip_network(ip_address, strict=False)
-
-            time_added = datetime.now(timezone.utc)
+            try:
+                duration_hours = int(duration_input)
+            except (ValueError, TypeError):
+                duration_hours = 24
             duration = timedelta(hours=duration_hours)
-            expires_at = time_added + duration
+            time_unblocked = time_added + duration
 
-            user_id = None
-            if created_by:
-                user = User.query.get(created_by)
-                if user:
-                    user_id = user.id
+            ip_address = request.form.get("ip_address")
+            comment = request.form.get("comment") or ""
+
+            try:
+                blocks_count = int(request.form.get("blocks_count"))
+            except (ValueError, TypeError):
+                blocks_count = 1
+
+            try:
+                ipaddress.ip_network(ip_address, strict=False)
+            except ValueError:
+                 return jsonify({'error': 'Invalid IP address or subnet'}), 400
+            
+            if Blocklist.query.filter_by(ip_address=ip_address).first():
+                return jsonify({'error': 'IP already exists in blocklist'}), 400
+
+            if Safelist.query.filter_by(ip_address=ip_address).first():
+                return jsonify({'error': 'IP already exists in safelist , delete it from safelist before adding to blocklist'}), 400
+
+            created_by = None
+            created_by_input = request.form.get("created_by")
+            if created_by_input:
+                try:
+                    user_id = int(created_by_input)
+                    with current_app.app_context():
+                        user = User.query.get(user_id)
+                        if user:
+                            created_by = user.id
+                except ValueError:
+                    pass
 
             ip_entry = Blocklist(
                 ip_address=ip_address,
-                comment=comment,
-                added_at=time_added,
-                expires_at=expires_at,
-                duration=duration,
                 blocks_count=blocks_count,
-                created_by=user_id
+                added_at=time_added.strftime('%m/%d/%y, %I:%M %p') if time_added else None,
+                expires_at=time_unblocked.strftime('%m/%d/%y, %I:%M %p') if time_unblocked else None,
+                duration=duration,
+                comment=comment,
+                created_by=created_by
             )
             db.session.add(ip_entry)
             db.session.commit()
-
-            return jsonify({"message": "IP added successfully", "id": ip_entry.id})
-
-        except Exception as e:
+        else:
             db.session.rollback()
-            return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"Error adding IP: {e}")
+        db.session.rollback()
 
+    try:
+        ips = Blocklist.query.all()
+    except Exception as e:
+        print(f"Error fetching IPs: {e}")
+        ips = []
 
-# API مسار لتحديث IP محدد
-@blocklist_bp.route("/api/blocklist/<int:entry_id>", methods=["PUT", "DELETE"])
-def api_blocklist_modify(entry_id):
-    ip_entry = Blocklist.query.get(entry_id)
-    if not ip_entry:
-        return jsonify({"error": "Entry not found"}), 404
+    return render_template("home.html", ips=ips)
 
-    if request.method == "PUT":
-        data = request.get_json()
-        try:
-            ip_address = data.get("ip_address")
-            comment = data.get("comment")
-            expires_at_str = data.get("expires_at")
+@blocklist_bp.route("/update", methods=["POST"])
+def update():
+    try:
+        entry_id = request.form.get("entry_id")
+        ip_entry = Blocklist.query.get(entry_id)
 
-            if ip_address:
-                ipaddress.ip_network(ip_address, strict=False)
-                ip_entry.ip_address = ip_address
-            if comment is not None:
-                ip_entry.comment = comment
-            if expires_at_str:
-                expires_at = datetime.strptime(expires_at_str, "%Y-%m-%dT%H:%M")
-                ip_entry.expires_at = expires_at
-                ip_entry.duration = expires_at - ip_entry.added_at
+        if ip_entry:
+            ip_entry.ip_address = request.form.get("ip_address")
+            ip_entry.comment = request.form.get("comment")
+            ip_entry.added_at = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
+            ip_entry.expires_at = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
+            ip_entry.duration = ip_entry.expires_at - ip_entry.added_at
+
+            try:
+                ip_entry.blocks_count = int(request.form.get("blocks_count"))
+            except (ValueError, TypeError):
+                ip_entry.blocks_count = 1
+
+            created_by_input = request.form.get("created_by")
+            if created_by_input:
+                try:
+                    user_id = int(created_by_input)
+                    user = User.query.get(user_id)
+                    ip_entry.created_by = user.id if user else None
+                except ValueError:
+                    ip_entry.created_by = None
 
             db.session.commit()
-            return jsonify({"message": "IP updated successfully"})
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"Error updating IP: {e}")
+        db.session.rollback()
+    return redirect("/blocklist/")
 
-    elif request.method == "DELETE":
-        try:
+@blocklist_bp.route("/delete", methods=["POST"])
+def delete():
+    try:
+        entry_id = request.form.get("entry_id")
+        ip_entry = Blocklist.query.get(entry_id)
+        if ip_entry:
             db.session.delete(ip_entry)
             db.session.commit()
-            return jsonify({"message": "IP deleted successfully"})
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"Error deleting IP: {e}")
+        db.session.rollback()
+    return redirect("/blocklist/")
 
-
-# API رفع CSV
-@blocklist_bp.route('/api/blocklist/upload', methods=['POST'])
+@blocklist_bp.route('/upload_csv', methods=['POST'])
 def upload_blocklist_csv():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -186,3 +203,4 @@ def upload_blocklist_csv():
 
     db.session.commit()
     return jsonify({'message': f'{added} IP(s) added to blocklist', 'errors': errors})
+
