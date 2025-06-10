@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Safelist IP Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <h2 class="mb-4">Add IP to Safelist</h2>
+
+    <form id="ipForm" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label for="ip_address" class="form-label">IP Address</label>
+            <input type="text" class="form-control" id="ip_address" required />
+        </div>
+        <div class="col-md-4">
+            <label for="comment" class="form-label">Comment</label>
+            <input type="text" class="form-control" id="comment" />
+        </div>
+        <div class="col-md-2">
+            <label for="duration" class="form-label">Duration (hours)</label>
+            <input type="number" class="form-control" id="duration" required />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Add IP</button>
+        </div>
+    </form>
+
+    <div id="message" class="mb-4 text-success fw-bold"></div>
+
+    <h3>Safelist Table</h3>
+
+    <form id="uploadForm" class="mb-3" enctype="multipart/form-data">
+        <input type="file" name="file" id="csvFile" accept=".csv" class="form-control mb-2" required />
+        <button type="submit" class="btn btn-secondary">Upload CSV</button>
+    </form>
+
+    <button id="deleteSelected" class="btn btn-danger mb-3" disabled>Delete Selected</button>
+
+    <table class="table table-bordered table-striped" id="ipTable">
+        <thead class="table-dark">
+        <tr>
+            <th><input type="checkbox" id="selectAll" /></th>
+            <th>ID</th>
+            <th>IP Address</th>
+            <th>Comment</th>
+            <th>Created By</th>
+            <th>Added At</th>
+            <th>Expires At</th>
+            <th>Duration (hrs)</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<!-- Modal for Update -->
+<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="updateForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="updateModalLabel">Update IP Entry</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="updateId">
+          <div class="mb-3">
+            <label for="updateIP" class="form-label">IP Address</label>
+            <input type="text" class="form-control" id="updateIP" required>
+          </div>
+          <div class="mb-3">
+            <label for="updateComment" class="form-label">Comment</label>
+            <input type="text" class="form-control" id="updateComment">
+          </div>
+          <div class="mb-3">
+            <label for="updateEnding" class="form-label">Expires At</label>
+            <input type="datetime-local" class="form-control" id="updateEnding">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+    const API_PREFIX = "/safelist/api/safelist";
+
+    async function fetchSafelist() {
+        const response = await fetch(API_PREFIX);
+        const data = await response.json();
+        const tableBody = document.querySelector('#ipTable tbody');
+        tableBody.innerHTML = '';
+
+        data.forEach(entry => {
+            const row = `
+                <tr>
+                    <td><input type="checkbox" class="rowCheckbox" data-id="${entry.id}" /></td>
+                    <td>${entry.id}</td>
+                    <td>${entry.ip_address}</td>
+                    <td>${entry.comment || ''}</td>
+                    <td>${entry.created_by || ''}</td>
+                    <td>${entry.added_at || ''}</td>
+                    <td>${entry.expires_at || ''}</td>
+                    <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
+                    <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+
+        updateDeleteButtonState();
+        document.querySelectorAll('.rowCheckbox').forEach(cb => {
+            cb.addEventListener('change', updateDeleteButtonState);
+        });
+
+        document.querySelectorAll('.updateBtn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                const row = e.target.closest('tr');
+                document.getElementById('updateId').value = id;
+                document.getElementById('updateIP').value = row.children[2].textContent.trim();
+                document.getElementById('updateComment').value = row.children[3].textContent.trim();
+
+                const rawDate = row.children[6].textContent.trim();
+                const dt = new Date(rawDate);
+                if (!isNaN(dt)) {
+                    document.getElementById('updateEnding').value = dt.toISOString().slice(0, 16);
+                } else {
+                    document.getElementById('updateEnding').value = '';
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById('updateModal'));
+                modal.show();
+            });
+        });
+    }
+
+    function updateDeleteButtonState() {
+        const checkboxes = document.querySelectorAll('.rowCheckbox:checked');
+        document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
+    }
+
+    document.getElementById('ipForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ip = document.getElementById('ip_address').value;
+        const comment = document.getElementById('comment').value;
+        const duration = document.getElementById('duration').value;
+
+        const response = await fetch(API_PREFIX, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip_address: ip, comment, created_by: 1, duration })  // Replace 1 with actual user ID
+        });
+
+        const result = await response.json();
+        document.getElementById('message').textContent = result.message || result.error || '';
+        fetchSafelist();
+        e.target.reset();
+    });
+
+    document.getElementById('selectAll').addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = checked);
+        updateDeleteButtonState();
+    });
+
+    document.getElementById('deleteSelected').addEventListener('click', async () => {
+        const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
+        for (let id of ids) {
+            await fetch(`${API_PREFIX}/${id}`, { method: 'DELETE' });
+        }
+        fetchSafelist();
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('csvFile');
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        const response = await fetch(`${API_PREFIX}/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        document.getElementById('message').textContent = result.message || result.error || '';
+        fetchSafelist();
+    });
+
+    document.getElementById('updateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('updateId').value;
+        const ip = document.getElementById('updateIP').value;
+        const comment = document.getElementById('updateComment').value;
+        const expires = document.getElementById('updateEnding').value;
+
+        const res = await fetch(`${API_PREFIX}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip_address: ip, comment: comment, expires_at: expires })
+        });
+
+        const result = await res.json();
+        document.getElementById('message').textContent = result.message || result.error || '';
+
+        bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
+        fetchSafelist();
+    });
+
+    fetchSafelist();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
