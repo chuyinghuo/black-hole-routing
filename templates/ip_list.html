@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <title>Safelist IP Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+<style>
+  thead a {
+    color: white;
+    text-decoration: none;
+  }
+
+  thead a:hover {
+    color: #e2e6ea; /* optional: lighter white on hover */
+    text-decoration: underline;
+  }
+</style>
+
 </head>
 <body class="bg-light">
 <div class="container mt-5">
@@ -35,6 +48,8 @@
         <button type="submit" class="btn btn-secondary">Upload CSV</button>
     </form>
 
+    <h3>Safelist Table</h3>
+
     <!-- Search + Delete Row -->
     <div class="d-flex justify-content-between align-items-end mb-3">
         <div>
@@ -49,21 +64,19 @@
         </div>
     </div>
 
-    <h3>Safelist Table</h3>
-
     <table class="table table-bordered table-striped" id="ipTable">
         <thead class="table-dark">
-        <tr>
-            <th><input type="checkbox" id="selectAll" /></th>
-            <th>ID</th>
-            <th>IP Address</th>
-            <th>Comment</th>
-            <th>Created By</th>
-            <th>Added At</th>
-            <th>Expires At</th>
-            <th>Duration (hrs)</th>
-            <th>Actions</th>
-        </tr>
+            <tr>
+                <th><input type="checkbox" id="selectAll" /></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('id')">ID <span id="sort-id"></span></a></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('ip_address')">IP Address <span id="sort-ip_address"></span></a></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('comment')">Comment <span id="sort-comment"></span></a></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('created_by')">Created By <span id="sort-created_by"></span></a></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('added_at')">Added At <span id="sort-added_at"></span></a></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('expires_at')">Expires At <span id="sort-expires_at"></span></a></th>
+                <th><a href="#" onclick="event.preventDefault(); setSort('duration')">Duration (hrs) <span id="sort-duration"></span></a></th>
+                <th>Actions</th>
+            </tr>
         </thead>
         <tbody></tbody>
     </table>
@@ -103,41 +116,57 @@
 
 <script>
     const API_PREFIX = "/safelist/api/safelist";
+    let currentSortField = 'id';
+    let currentSortOrder = 'asc';
 
     async function fetchSafelist() {
-        const response = await fetch(API_PREFIX);
+        const params = new URLSearchParams({ sort: currentSortField, order: currentSortOrder });
+        const response = await fetch(`${API_PREFIX}?${params.toString()}`);
         const data = await response.json();
         renderSafelist(data);
+        applySortIndicators();
+    }
+
+    function setSort(field) {
+        if (currentSortField === field) {
+            currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSortField = field;
+            currentSortOrder = 'asc';
+        }
+        fetchSafelist();
+    }
+
+    function applySortIndicators() {
+        document.querySelectorAll("thead span").forEach(el => el.textContent = "");
+        const arrow = currentSortOrder === "asc" ? "↑" : "↓";
+        const indicator = document.getElementById(`sort-${currentSortField}`);
+        if (indicator) indicator.textContent = arrow;
     }
 
     async function searchIP() {
-    const query = document.getElementById("searchIP").value.trim();
-
-    // Reset to full list if input is empty
-    if (!query) {
-        fetchSafelist();
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_PREFIX}/search?ip=${encodeURIComponent(query)}`);
-        const data = await response.json();
-
-        if (response.ok) {
-            renderSafelist(data);
-        } else {
-            document.getElementById("message").textContent = data.error || "Search failed.";
+        const query = document.getElementById("searchIP").value.trim();
+        if (!query) {
+            fetchSafelist();
+            return;
         }
-    } catch (err) {
-        console.error("Search error:", err);
-        document.getElementById("message").textContent = "An error occurred while searching.";
+        try {
+            const response = await fetch(`${API_PREFIX}/search?ip=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            if (response.ok) {
+                renderSafelist(data);
+            } else {
+                document.getElementById("message").textContent = data.error || "Search failed.";
+            }
+        } catch (err) {
+            console.error("Search error:", err);
+            document.getElementById("message").textContent = "An error occurred while searching.";
+        }
     }
-}
 
     function renderSafelist(data) {
         const tableBody = document.querySelector('#ipTable tbody');
         tableBody.innerHTML = '';
-
         data.forEach(entry => {
             const row = `
                 <tr>
@@ -150,8 +179,7 @@
                     <td>${entry.expires_at ? new Date(entry.expires_at).toLocaleString() : ''}</td>
                     <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
                     <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
-                </tr>
-            `;
+                </tr>`;
             tableBody.innerHTML += row;
         });
 
@@ -167,11 +195,9 @@
                 document.getElementById('updateId').value = id;
                 document.getElementById('updateIP').value = row.children[2].textContent.trim();
                 document.getElementById('updateComment').value = row.children[3].textContent.trim();
-
                 const rawDate = row.children[6].textContent.trim();
                 const dt = new Date(rawDate);
                 document.getElementById('updateEnding').value = isNaN(dt) ? '' : dt.toISOString().slice(0, 16);
-
                 const modal = new bootstrap.Modal(document.getElementById('updateModal'));
                 modal.show();
             });
@@ -221,11 +247,7 @@
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
 
-        const response = await fetch(`${API_PREFIX}/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
+        const response = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: formData });
         const result = await response.json();
         const messageEl = document.getElementById('message');
         const errorListEl = document.getElementById('errorList');
@@ -265,7 +287,6 @@
 
         const result = await res.json();
         document.getElementById('message').textContent = result.message || result.error || '';
-
         bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
         fetchSafelist();
     });

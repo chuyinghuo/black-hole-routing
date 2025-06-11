@@ -3,19 +3,38 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 from flask import Blueprint, request, jsonify, render_template
 from init_db import db
-from models import Safelist, User , Blocklist
+from models import Safelist, User, Blocklist
 from datetime import datetime, timedelta, timezone
 from markupsafe import escape
 import ipaddress
 import csv
 from io import StringIO
-from sqlalchemy import cast, String
+from sqlalchemy import cast, String, asc, desc
 
 safelist_bp = Blueprint('safelist', __name__)
 
 @safelist_bp.route('/api/safelist', methods=['GET'])
 def get_safelist():
-    entries = Safelist.query.all()
+    sort_field = request.args.get('sort', 'id')
+    sort_order = request.args.get('order', 'asc')
+
+    valid_fields = {
+        'id': Safelist.id,
+        'ip_address': Safelist.ip_address,
+        'comment': Safelist.comment,
+        'created_by': Safelist.created_by,
+        'added_at': Safelist.added_at,
+        'expires_at': Safelist.expires_at,
+        'duration': Safelist.duration
+    }
+
+    sort_column = valid_fields.get(sort_field)
+    if not sort_column:
+        return jsonify({'error': f'Invalid sort field: {sort_field}'}), 400
+
+    direction = asc if sort_order == 'asc' else desc
+    entries = Safelist.query.order_by(direction(sort_column)).all()
+
     return jsonify([
         {
             'id': entry.id,
@@ -50,8 +69,7 @@ def add_ip():
         return jsonify({'error': 'IP already exists'}), 400
     
     if Blocklist.query.filter_by(ip_address=ip_address).first():
-        return jsonify({'error': 'IP already exists in blocklist , delete it from blocklist before adding to safelist'}), 400
-
+        return jsonify({'error': 'IP already exists in blocklist, delete it from blocklist before adding to safelist'}), 400
 
     try:
         duration_hours = int(duration_input)
@@ -81,6 +99,7 @@ def add_ip():
     db.session.add(entry)
     db.session.commit()
     return jsonify({'message': 'IP added successfully'}), 201
+
 @safelist_bp.route('/api/safelist/upload', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
@@ -169,7 +188,6 @@ def edit_ip(entry_id):
         except ValueError:
             return jsonify({'error': 'Invalid expires_at format'}), 400
 
-        # Ensure added_at is also timezone-aware for subtraction
         if entry.added_at.tzinfo is None:
             entry.added_at = entry.added_at.replace(tzinfo=timezone.utc)
 
@@ -192,7 +210,6 @@ def search_ip():
     if not ip:
         return jsonify({'error': 'IP parameter is required'}), 400
 
-    # Cast IP address to string so we can use LIKE
     results = Safelist.query.filter(cast(Safelist.ip_address, String).like(f"%{ip}%")).all()
 
     return jsonify([
