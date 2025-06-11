@@ -75,6 +75,7 @@ def home():
             )
             db.session.add(ip_entry)
             db.session.commit()
+            return jsonify({'message': 'IP added successfully'}), 201
         else:
             db.session.rollback()
     except Exception as e:
@@ -134,7 +135,6 @@ def delete():
         print(f"Error deleting IP: {e}")
         db.session.rollback()
     return redirect("/blocklist/")
-
 @blocklist_bp.route('/upload_csv', methods=['POST'])
 def upload_blocklist_csv():
     if 'file' not in request.files:
@@ -166,9 +166,14 @@ def upload_blocklist_csv():
             errors.append(f"Row {row_num}: Invalid IP '{ip_address}'")
             continue
 
-        # Check for duplicates
+        # Check if IP already exists in blocklist
         if Blocklist.query.filter_by(ip_address=ip_address).first():
-            errors.append(f"Row {row_num}: IP '{ip_address}' already exists")
+            errors.append(f"Row {row_num}: IP '{ip_address}' already exists in blocklist")
+            continue
+
+        # Check if IP exists in safelist
+        if Safelist.query.filter_by(ip_address=ip_address).first():
+            errors.append(f"Row {row_num}: IP '{ip_address}' already exists in safelist")
             continue
 
         # Validate duration
@@ -202,5 +207,7 @@ def upload_blocklist_csv():
         added += 1
 
     db.session.commit()
-    return jsonify({'message': f'{added} IP(s) added to blocklist', 'errors': errors})
-
+    return jsonify({
+        'message': f'{added} IP(s) added to blocklist',
+        'errors': errors
+    })
