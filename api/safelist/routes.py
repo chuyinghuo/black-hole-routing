@@ -9,6 +9,7 @@ from markupsafe import escape
 import ipaddress
 import csv
 from io import StringIO
+from sqlalchemy import cast, String
 
 safelist_bp = Blueprint('safelist', __name__)
 
@@ -191,15 +192,17 @@ def search_ip():
     if not ip:
         return jsonify({'error': 'IP parameter is required'}), 400
 
-    results = Safelist.query.filter(Safelist.ip_address.like(f"%{ip}%")).all()
+    # Cast IP address to string so we can use LIKE
+    results = Safelist.query.filter(cast(Safelist.ip_address, String).like(f"%{ip}%")).all()
+
     return jsonify([
         {
             'id': entry.id,
-            'ip_address': entry.ip_address,
+            'ip_address': str(entry.ip_address),
             'created_by': entry.created_by,
-            'added_at': entry.added_at.isoformat() if entry.added_at else None,
-            'expires_at': entry.expires_at.isoformat() if entry.expires_at else None,
-            'duration': str(entry.duration),
+            'added_at': entry.added_at.strftime('%m/%d/%y, %I:%M %p') if entry.added_at else None,
+            'expires_at': entry.expires_at.strftime('%m/%d/%y, %I:%M %p') if entry.expires_at else None,
+            'duration': round(entry.duration.total_seconds() / 3600, 2),
             'comment': entry.comment
         }
         for entry in results

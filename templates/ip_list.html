@@ -30,15 +30,26 @@
     <div id="message" class="mb-4 text-success fw-bold"></div>
     <div id="errorList" class="mb-4 text-danger"></div>
 
-
-    <h3>Safelist Table</h3>
-
-    <form id="uploadForm" class="mb-3" enctype="multipart/form-data">
+        <form id="uploadForm" class="mb-3" enctype="multipart/form-data">
         <input type="file" name="file" id="csvFile" accept=".csv" class="form-control mb-2" required />
         <button type="submit" class="btn btn-secondary">Upload CSV</button>
     </form>
 
-    <button id="deleteSelected" class="btn btn-danger mb-3" disabled>Delete Selected</button>
+    <!-- Search + Delete Row -->
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <div>
+            <label for="searchIP" class="form-label">Search by IP Address</label>
+            <div class="d-flex">
+                <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP address" onkeypress="if(event.key === 'Enter'){ event.preventDefault(); searchIP(); }" />
+                <button class="btn btn-secondary" onclick="searchIP()">Search</button>
+            </div>
+        </div>
+        <div class="text-end">
+            <button id="deleteSelected" class="btn btn-danger" disabled>Delete Selected</button>
+        </div>
+    </div>
+
+    <h3>Safelist Table</h3>
 
     <table class="table table-bordered table-striped" id="ipTable">
         <thead class="table-dark">
@@ -96,6 +107,34 @@
     async function fetchSafelist() {
         const response = await fetch(API_PREFIX);
         const data = await response.json();
+        renderSafelist(data);
+    }
+
+    async function searchIP() {
+    const query = document.getElementById("searchIP").value.trim();
+
+    // Reset to full list if input is empty
+    if (!query) {
+        fetchSafelist();
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_PREFIX}/search?ip=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            renderSafelist(data);
+        } else {
+            document.getElementById("message").textContent = data.error || "Search failed.";
+        }
+    } catch (err) {
+        console.error("Search error:", err);
+        document.getElementById("message").textContent = "An error occurred while searching.";
+    }
+}
+
+    function renderSafelist(data) {
         const tableBody = document.querySelector('#ipTable tbody');
         tableBody.innerHTML = '';
 
@@ -107,8 +146,8 @@
                     <td>${entry.ip_address}</td>
                     <td>${entry.comment || ''}</td>
                     <td>${entry.created_by || ''}</td>
-                    <td>${entry.added_at || ''}</td>
-                    <td>${entry.expires_at || ''}</td>
+                    <td>${entry.added_at ? new Date(entry.added_at).toLocaleString() : ''}</td>
+                    <td>${entry.expires_at ? new Date(entry.expires_at).toLocaleString() : ''}</td>
                     <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
                     <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
                 </tr>
@@ -131,11 +170,7 @@
 
                 const rawDate = row.children[6].textContent.trim();
                 const dt = new Date(rawDate);
-                if (!isNaN(dt)) {
-                    document.getElementById('updateEnding').value = dt.toISOString().slice(0, 16);
-                } else {
-                    document.getElementById('updateEnding').value = '';
-                }
+                document.getElementById('updateEnding').value = isNaN(dt) ? '' : dt.toISOString().slice(0, 16);
 
                 const modal = new bootstrap.Modal(document.getElementById('updateModal'));
                 modal.show();
@@ -192,8 +227,27 @@
         });
 
         const result = await response.json();
-        document.getElementById('message').textContent = result.message || result.error || '';
+        const messageEl = document.getElementById('message');
+        const errorListEl = document.getElementById('errorList');
+
+        if (result.message) {
+            messageEl.textContent = result.message;
+            messageEl.className = "mb-4 text-success fw-bold";
+        } else if (result.error) {
+            messageEl.textContent = result.error;
+            messageEl.className = "mb-4 text-danger fw-bold";
+        } else {
+            messageEl.textContent = '';
+        }
+
+        if (result.errors && result.errors.length > 0) {
+            errorListEl.innerHTML = '<ul>' + result.errors.map(err => `<li>${err}</li>`).join('') + '</ul>';
+        } else {
+            errorListEl.innerHTML = '';
+        }
+
         fetchSafelist();
+        fileInput.value = '';
     });
 
     document.getElementById('updateForm').addEventListener('submit', async (e) => {
@@ -217,45 +271,6 @@
     });
 
     fetchSafelist();
-
-    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fileInput = document.getElementById('csvFile');
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-
-    const response = await fetch(`${API_PREFIX}/upload`, {
-        method: 'POST',
-        body: formData
-    });
-
-    const result = await response.json();
-
-    // عرض رسالة النجاح (أو الخطأ العام)
-    const messageEl = document.getElementById('message');
-    const errorListEl = document.getElementById('errorList');
-
-    if (result.message) {
-        messageEl.textContent = result.message;
-        messageEl.className = "mb-4 text-success fw-bold";
-    } else if (result.error) {
-        messageEl.textContent = result.error;
-        messageEl.className = "mb-4 text-danger fw-bold";
-    } else {
-        messageEl.textContent = '';
-    }
-
-    // عرض الأخطاء التفصيلية كقائمة (إذا موجودة)
-    if (result.errors && result.errors.length > 0) {
-        errorListEl.innerHTML = '<ul>' + result.errors.map(err => `<li>${err}</li>`).join('') + '</ul>';
-    } else {
-        errorListEl.innerHTML = '';
-    }
-
-    fetchSafelist();
-    fileInput.value = '';  // تفريغ حقل الملف
-});
-
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
