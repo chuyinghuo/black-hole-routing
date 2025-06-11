@@ -4,6 +4,11 @@ from flask import Flask
 from flask_cors import CORS
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+from apscheduler.schedulers.background import BackgroundScheduler
+from models import Safelist
+from init_db import db
+
 
 # Set up base directory and sys.path
 BASE_DIR = Path(__file__).resolve().parent
@@ -37,11 +42,16 @@ def create_app():
     from api.blocklist.routes import blocklist_bp
     from api.safelist.routes import safelist_bp
     from api.users.routes import users_bp
+    from api.dashboard.routes import dashboard_bp
+
+
 
     # Register blueprints
     app.register_blueprint(blocklist_bp, url_prefix="/blocklist")
     app.register_blueprint(safelist_bp, url_prefix="/safelist")
     app.register_blueprint(users_bp, url_prefix="/users")
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+
 
     return app
 
