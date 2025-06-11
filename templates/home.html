@@ -101,16 +101,17 @@
         <thead class="table-dark">
           <tr>
             <th><input type="checkbox" id="selectAll" /></th>
-            <th>IP</th>
-            <th>Blocks</th>
-            <th>Added At</th>
-            <th>Expires At</th>
-            <th>Reason</th>
-            <th>User ID</th>
-            <th>Duration</th>
+            <th><a href="?sort=ip_address&order={{ 'desc' if request.args.get('sort') == 'ip_address' and request.args.get('order') == 'asc' else 'asc' }}">IP {% if request.args.get('sort') == 'ip_address' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+            <th><a href="?sort=blocks_count&order={{ 'desc' if request.args.get('sort') == 'blocks_count' and request.args.get('order') == 'asc' else 'asc' }}">Blocks {% if request.args.get('sort') == 'blocks_count' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+            <th><a href="?sort=added_at&order={{ 'desc' if request.args.get('sort') == 'added_at' and request.args.get('order') == 'asc' else 'asc' }}">Added At {% if request.args.get('sort') == 'added_at' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+            <th><a href="?sort=expires_at&order={{ 'desc' if request.args.get('sort') == 'expires_at' and request.args.get('order') == 'asc' else 'asc' }}">Expires At {% if request.args.get('sort') == 'expires_at' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+            <th><a href="?sort=comment&order={{ 'desc' if request.args.get('sort') == 'comment' and request.args.get('order') == 'asc' else 'asc' }}">Reason {% if request.args.get('sort') == 'comment' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+            <th><a href="?sort=created_by&order={{ 'desc' if request.args.get('sort') == 'created_by' and request.args.get('order') == 'asc' else 'asc' }}">User ID {% if request.args.get('sort') == 'created_by' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+            <th><a href="?sort=duration&order={{ 'desc' if request.args.get('sort') == 'duration' and request.args.get('order') == 'asc' else 'asc' }}">Duration {% if request.args.get('sort') == 'duration' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
             <th>Actions</th>
           </tr>
         </thead>
+
         <tbody>
           {% for ip in ips %}
           <tr>

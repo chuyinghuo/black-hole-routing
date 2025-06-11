@@ -10,6 +10,8 @@ from io import StringIO
 import csv
 from init_db import db
 from models import Blocklist, User ,Safelist
+from sqlalchemy import cast, String,  asc, desc
+
 
 # Add project root to sys.path for module access
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -83,12 +85,54 @@ def home():
         db.session.rollback()
 
     try:
-        ips = Blocklist.query.all()
+        search_term = request.args.get("search", "").strip()
+        sort_column = request.args.get("sort", "added_at")  # Default sort column
+        sort_order = request.args.get("order", "desc")
+
+        # Validate column
+        valid_columns = {
+            "ip_address": Blocklist.ip_address,
+            "blocks_count": Blocklist.blocks_count,
+            "added_at": Blocklist.added_at,
+            "expires_at": Blocklist.expires_at,
+            "comment": Blocklist.comment,
+            "created_by": Blocklist.created_by,
+            "duration": Blocklist.duration
+        }
+
+        sort_expr = valid_columns.get(sort_column, Blocklist.added_at)
+        sort_expr = asc(sort_expr) if sort_order == "asc" else desc(sort_expr)
+
+        if search_term:
+            ips = Blocklist.query.filter(cast(Blocklist.ip_address, String).ilike(f"%{search_term}%")).order_by(sort_expr).all()
+        else:
+            ips = Blocklist.query.order_by(sort_expr).all()
     except Exception as e:
         print(f"Error fetching IPs: {e}")
         ips = []
 
     return render_template("home.html", ips=ips)
+
+@blocklist_bp.route('/search', methods=['GET'])
+def search_ip():
+    query = request.args.get('ip')
+    if not query:
+        return jsonify({'error': 'No IP address provided'}), 400
+
+    results = Blocklist.query.filter(Blocklist.ip_address.like(f"%{query}%")).all()
+
+    return jsonify([
+        {
+            'id': entry.id,
+            'ip_address': entry.ip_address,
+            'blocks_count': entry.blocks_count,
+            'added_at': entry.added_at,
+            'expires_at': entry.expires_at,
+            'comment': entry.comment,
+            'created_by': entry.created_by,
+            'duration': entry.duration.total_seconds() / 3600 if entry.duration else None
+        } for entry in results
+    ])
 
 @blocklist_bp.route("/update", methods=["POST"])
 def update():
@@ -211,3 +255,22 @@ def upload_blocklist_csv():
         'message': f'{added} IP(s) added to blocklist',
         'errors': errors
     })
+
+@blocklist_bp.route("/bulk_delete", methods=["POST"])
+def bulk_delete():
+    data = request.get_json()
+    ids = data.get("ids", [])
+
+    if not ids:
+        return jsonify({"error": "No IDs provided"}), 400
+
+    try:
+        for entry_id in ids:
+            ip_entry = Blocklist.query.get(entry_id)
+            if ip_entry:
+                db.session.delete(ip_entry)
+        db.session.commit()
+        return jsonify({"message": f"Deleted {len(ids)} entries."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Deletion failed: {str(e)}"}), 500
