@@ -256,7 +256,7 @@ def upload_blocklist_csv():
         'errors': errors
     })
 
-@blocklist_bp.route("/bulk_delete", methods=["POST"])
+@blocklist_bp.route("/delete_bulk", methods=["POST"])
 def bulk_delete():
     data = request.get_json()
     ids = data.get("ids", [])
