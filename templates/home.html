@@ -18,130 +18,119 @@
 <body class="bg-light">
 {% include 'sidebar.html' %}
 
-  <div class="container mt-5">
-    <h2 class="mb-4">Add IP to Blocklist</h2>
+<div class="container mt-5">
+  <h1 class="mb-3">Blocklist Manager</h1>
+  <br>
 
-    <!-- Add IP Form -->
-    <form id="addIPForm" method="POST" action="/blocklist/" class="row g-3 mb-4">
-      <div class="col-md-3">
-        <label class="form-label">IP (CIDR)</label>
-        <input type="text" name="ip_address" class="form-control" required />
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Num of Blocks</label>
-        <input type="number" name="blocks_count" class="form-control" required />
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Time Added</label>
-        <input type="datetime-local" name="time_added" id="time_added" class="form-control" required />
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Duration (hours)</label>
-        <input type="number" name="duration" id="duration" class="form-control" required />
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Time Unblocked</label>
-        <input type="datetime-local" name="time_unblocked" id="time_unblocked" class="form-control" readonly />
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Reason</label>
-        <input type="text" name="comment" class="form-control" required />
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">User ID (optional)</label>
-        <input type="text" name="created_by" class="form-control" />
-      </div>
-      <div class="col-md-2 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary w-100">Add</button>
-      </div>
-      <div class="col-12">
-        <div id="addMessage" class="alert alert-dismissible d-none fade show fw-bold" role="alert">
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      </div>
+  <div class="mb-3">
+    <button id="showFormBtn" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addIPModal">
+      Add IP
+    </button>
+    <form id="uploadForm" class="d-inline-block" enctype="multipart/form-data">
+      <input type="file" name="file" id="csvFile" accept=".csv" class="d-none"
+             required onchange="document.getElementById('uploadForm').requestSubmit()" />
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('csvFile').click()">
+        Upload CSV
+      </button>
     </form>
+  </div>
+  <hr />
 
-    <!-- Upload CSV Form -->
-    <form id="uploadCSVForm" class="mb-4" enctype="multipart/form-data">
-      <label class="form-label">Upload CSV</label>
-      <div class="row g-3 align-items-center">
-        <div class="col-md-6">
-          <input type="file" name="file" id="csvFile" accept=".csv" required class="form-control" />
-        </div>
-        <div class="col-md-3">
-          <button type="submit" class="btn btn-secondary w-100">Upload CSV</button>
-        </div>
-        <div class="col-12">
-          <div id="uploadMessage" class="alert alert-dismissible d-none fade show fw-bold mt-3" role="alert">
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        </div>
-      </div>
-    </form>
-
-    <h3>Blocklist Table</h3>
-
-    <!-- Bulk delete controls -->
-    <div class="d-flex justify-content-between align-items-end mb-3">
-      <div>
-        <label for="searchIP" class="form-label">Search by IP Address</label>
-        <div class="d-flex">
-          <form method="GET" action="/blocklist/" class="d-flex">
-            <input type="text" class="form-control w-auto me-2" id="searchIP" name="search" placeholder="Enter IP address" value="{{ request.args.get('search', '') }}" />
-            <button type="button" id="searchBtn" class="btn btn-secondary">Search</button>
-          </form>
-        </div>
-      </div>
-      <div class="text-end">
-        <button id="deleteSelected" class="btn btn-danger" disabled>Delete Selected</button>
+  <div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+      <label for="searchIP" class="form-label">Search by IP Address</label>
+      <div class="d-flex">
+        <input type="text" class="form-control w-auto me-2" id="searchIP" name="search" placeholder="Enter IP address"
+               value="{{ request.args.get('search', '') }}" onkeypress="if(event.key === 'Enter'){ event.preventDefault(); searchIP(); }" />
+        <button class="btn btn-secondary" onclick="searchIP()">Search</button>
       </div>
     </div>
-
-    <!-- Blocklist table -->
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped align-middle mb-0" id="blocklistTable">
-        <thead class="table-dark">
-          <tr>
-            <th><input type="checkbox" id="selectAll" /></th>
-            <th><a href="?sort=ip_address&order={{ 'desc' if request.args.get('sort') == 'ip_address' and request.args.get('order') == 'asc' else 'asc' }}">IP {% if request.args.get('sort') == 'ip_address' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th><a href="?sort=blocks_count&order={{ 'desc' if request.args.get('sort') == 'blocks_count' and request.args.get('order') == 'asc' else 'asc' }}">Blocks {% if request.args.get('sort') == 'blocks_count' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th><a href="?sort=added_at&order={{ 'desc' if request.args.get('sort') == 'added_at' and request.args.get('order') == 'asc' else 'asc' }}">Added At {% if request.args.get('sort') == 'added_at' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th><a href="?sort=expires_at&order={{ 'desc' if request.args.get('sort') == 'expires_at' and request.args.get('order') == 'asc' else 'asc' }}">Expires At {% if request.args.get('sort') == 'expires_at' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th><a href="?sort=comment&order={{ 'desc' if request.args.get('sort') == 'comment' and request.args.get('order') == 'asc' else 'asc' }}">Reason {% if request.args.get('sort') == 'comment' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th><a href="?sort=created_by&order={{ 'desc' if request.args.get('sort') == 'created_by' and request.args.get('order') == 'asc' else 'asc' }}">User ID {% if request.args.get('sort') == 'created_by' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th><a href="?sort=duration&order={{ 'desc' if request.args.get('sort') == 'duration' and request.args.get('order') == 'asc' else 'asc' }}">Duration {% if request.args.get('sort') == 'duration' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {% for ip in ips %}
-          <tr>
-            <td><input type="checkbox" class="rowCheckbox" data-id="{{ ip.id }}" /></td>
-            <td>{{ ip.ip_address }}</td>
-            <td>{{ ip.blocks_count }}</td>
-            <td>{{ ip.added_at }}</td>
-            <td>{{ ip.expires_at }}</td>
-            <td>{{ ip.comment }}</td>
-            <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
-            <td>
-              {% if ip.duration %}
-                {{ (ip.duration.total_seconds() // 3600)|int }} hr
-              {% else %}
-                — 
-              {% endif %}
-            </td>
-            <td>
-              <button type="button" class="btn btn-sm btn-outline-warning"
-                onclick="fillEditForm('{{ ip.id }}', '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at }}', '{{ ip.expires_at }}', '{{ ip.comment }}', '{{ ip.created_by or '' }}')"
-                data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="text-end">
+      <button id="deleteSelected" class="btn btn-danger" disabled>Delete Selected</button>
     </div>
   </div>
+
+  <h3>Blocklist Table</h3>
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle mb-0" id="blocklistTable">
+      <thead class="table-dark">
+        <tr>
+          <th><input type="checkbox" id="selectAll" /></th>
+          <th><a href="?sort=ip_address&order={{ 'desc' if request.args.get('sort') == 'ip_address' and request.args.get('order') == 'asc' else 'asc' }}">IP {% if request.args.get('sort') == 'ip_address' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th><a href="?sort=blocks_count&order={{ 'desc' if request.args.get('sort') == 'blocks_count' and request.args.get('order') == 'asc' else 'asc' }}">Blocks {% if request.args.get('sort') == 'blocks_count' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th><a href="?sort=added_at&order={{ 'desc' if request.args.get('sort') == 'added_at' and request.args.get('order') == 'asc' else 'asc' }}">Added At {% if request.args.get('sort') == 'added_at' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th><a href="?sort=expires_at&order={{ 'desc' if request.args.get('sort') == 'expires_at' and request.args.get('order') == 'asc' else 'asc' }}">Expires At {% if request.args.get('sort') == 'expires_at' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th><a href="?sort=comment&order={{ 'desc' if request.args.get('sort') == 'comment' and request.args.get('order') == 'asc' else 'asc' }}">Reason {% if request.args.get('sort') == 'comment' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th><a href="?sort=created_by&order={{ 'desc' if request.args.get('sort') == 'created_by' and request.args.get('order') == 'asc' else 'asc' }}">User ID {% if request.args.get('sort') == 'created_by' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th><a href="?sort=duration&order={{ 'desc' if request.args.get('sort') == 'duration' and request.args.get('order') == 'asc' else 'asc' }}">Duration {% if request.args.get('sort') == 'duration' %}{{ '↑' if request.args.get('order') == 'asc' else '↓' }}{% endif %}</a></th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ip in ips %}
+        <tr>
+          <td><input type="checkbox" class="rowCheckbox" data-id="{{ ip.id }}" /></td>
+          <td>{{ ip.ip_address }}</td>
+          <td>{{ ip.blocks_count }}</td>
+          <td>{{ ip.added_at }}</td>
+          <td>{{ ip.expires_at }}</td>
+          <td>{{ ip.comment }}</td>
+          <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
+          <td>{% if ip.duration %}{{ (ip.duration.total_seconds() // 3600)|int }} hr{% else %}—{% endif %}</td>
+          <td><button type="button" class="btn btn-sm btn-warning updateBtn" onclick="fillEditForm('{{ ip.id }}', '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at }}', '{{ ip.expires_at }}', '{{ ip.comment }}', '{{ ip.created_by or '' }}')" data-bs-toggle="modal" data-bs-target="#editModal">Update</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add IP Modal -->
+<div class="modal fade" id="addIPModal" tabindex="-1" aria-labelledby="addIPModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="addIPForm" method="POST" action="/blocklist/">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addIPModalLabel">Add IP to Blocklist</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">IP (CIDR)</label>
+            <input type="text" name="ip_address" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Num of Blocks</label>
+            <input type="number" name="blocks_count" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Time Added</label>
+            <input type="datetime-local" name="time_added" id="time_added" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Duration (hours)</label>
+            <input type="number" name="duration" id="duration" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Time Unblocked</label>
+            <input type="datetime-local" name="time_unblocked" id="time_unblocked" class="form-control" readonly />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Reason</label>
+            <input type="text" name="comment" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">User ID (optional)</label>
+            <input type="text" name="created_by" class="form-control" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">➕ Add IP</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
   <!-- Edit Modal -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
