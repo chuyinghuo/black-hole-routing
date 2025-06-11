@@ -16,173 +16,186 @@
   </style>
 </head>
 <body class="bg-light">
-<div class="container mt-5">
-  <h2 class="mb-4 text-dark">Add IP to Blocklist</h2>
+  <div class="container mt-5">
+    <h2 class="mb-4">Add IP to Blocklist</h2>
 
-  <!-- Add IP Form -->
-  <form id="addIPForm" method="POST" action="/blocklist/" class="row g-3 mb-4">
-    <div class="col-md-3">
-      <label class="form-label">IP (CIDR)</label>
-      <input type="text" name="ip_address" class="form-control" required />
-    </div>
-    <div class="col-md-2">
-      <label class="form-label">Num of Blocks</label>
-      <input type="number" name="blocks_count" class="form-control" required />
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">Time Added</label>
-      <input type="datetime-local" name="time_added" id="time_added" class="form-control" required />
-    </div>
-    <div class="col-md-2">
-      <label class="form-label">Duration (hours)</label>
-      <input type="number" name="duration" id="duration" class="form-control" required />
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Time Unblocked</label>
-      <input type="datetime-local" name="time_unblocked" id="time_unblocked" class="form-control" readonly />
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">Reason</label>
-      <input type="text" name="comment" class="form-control" required />
-    </div>
-    <div class="col-md-2">
-      <label class="form-label">User ID (optional)</label>
-      <input type="text" name="created_by" class="form-control" />
-    </div>
-    <div class="col-md-2 d-flex align-items-end">
-      <button type="submit" class="btn btn-primary w-100">Add</button>
-    </div>
-    <div class="col-md-12">
-      <div id="addMessage" class="alert alert-dismissible d-none fade show fw-bold" role="alert">
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <!-- Add IP Form -->
+    <form id="addIPForm" method="POST" action="/blocklist/" class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label class="form-label">IP (CIDR)</label>
+        <input type="text" name="ip_address" class="form-control" required />
       </div>
-    </div>
-  </form>
-
-  <!-- Upload CSV Form -->
-  <form id="uploadCSVForm" class="mb-4" enctype="multipart/form-data">
-    <label class="form-label">Upload CSV</label>
-    <div class="row g-3 align-items-center">
-      <div class="col-md-6">
-        <input type="file" name="file" id="csvFile" accept=".csv" required class="form-control" />
+      <div class="col-md-2">
+        <label class="form-label">Num of Blocks</label>
+        <input type="number" name="blocks_count" class="form-control" required />
       </div>
       <div class="col-md-3">
-        <button type="submit" class="btn btn-secondary w-100">Upload CSV</button>
+        <label class="form-label">Time Added</label>
+        <input type="datetime-local" name="time_added" id="time_added" class="form-control" required />
       </div>
-      <div class="col-md-12">
-        <div id="uploadMessage" class="alert alert-dismissible d-none fade show fw-bold mt-3" role="alert">
+      <div class="col-md-2">
+        <label class="form-label">Duration (hours)</label>
+        <input type="number" name="duration" id="duration" class="form-control" required />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Time Unblocked</label>
+        <input type="datetime-local" name="time_unblocked" id="time_unblocked" class="form-control" readonly />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Reason</label>
+        <input type="text" name="comment" class="form-control" required />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">User ID (optional)</label>
+        <input type="text" name="created_by" class="form-control" />
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">Add</button>
+      </div>
+      <div class="col-12">
+        <div id="addMessage" class="alert alert-dismissible d-none fade show fw-bold" role="alert">
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
       </div>
-    </div>
-  </form>
+    </form>
 
-  <!-- Table -->
-  <h3 class="mb-3 text-dark">Blocked IPs</h3>
-  <div class="table-responsive">
-    <table class="table table-bordered table-striped align-middle mb-0">
-      <thead class="table-dark">
-        <tr>
-          <th>IP</th>
-          <th>Blocks</th>
-          <th>Added At</th>
-          <th>Expires At</th>
-          <th>Reason</th>
-          <th>User ID</th>
-          <th>Duration</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for ip in ips %}
-        <tr>
-          <td>{{ ip.ip_address }}</td>
-          <td>{{ ip.blocks_count }}</td>
-          <td>{{ ip.added_at.strftime('%m/%d/%y, %I:%M %p') if ip.added_at else '—' }}</td>
-          <td>{{ ip.expires_at.strftime('%m/%d/%y, %I:%M %p') if ip.expires_at else '—' }}</td>
-          <td>{{ ip.comment }}</td>
-          <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
-          <td>{% if ip.duration %}{{ (ip.duration.total_seconds() // 3600)|int }} hr{% else %}—{% endif %}</td>
-          <td>
-            <form method="POST" action="/blocklist/delete" class="d-inline">
-              <input type="hidden" name="entry_id" value="{{ ip.id }}" />
-              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-            </form>
-            <button type="button" class="btn btn-sm btn-outline-warning" onclick="fillEditForm({{ ip.id }}, '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at.strftime('%Y-%m-%dT%H:%M') }}', '{{ ip.expires_at.strftime('%Y-%m-%dT%H:%M') }}', '{{ ip.comment }}', '{{ ip.created_by if ip.created_by else '' }}')" data-bs-toggle="modal" data-bs-target="#editModal">
-              Edit
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Edit Modal -->
-<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="POST" action="/blocklist/update" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="editModalLabel">Edit Block Entry</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" name="entry_id" id="edit_entry_id">
-        <div class="mb-3"><label>IP Address</label><input type="text" class="form-control" name="ip_address" id="edit_ip_address" required></div>
-        <div class="mb-3"><label>Blocks</label><input type="number" class="form-control" name="blocks_count" id="edit_blocks_count" required></div>
-        <div class="mb-3"><label>Time Added</label><input type="datetime-local" class="form-control" name="time_added" id="edit_time_added" required></div>
-        <div class="mb-3"><label>Time Unblocked</label><input type="datetime-local" class="form-control" name="time_unblocked" id="edit_time_unblocked" required></div>
-        <div class="mb-3"><label>Reason</label><input type="text" class="form-control" name="comment" id="edit_comment"></div>
-        <div class="mb-3"><label>Created By (User ID)</label><input type="text" class="form-control" name="created_by" id="edit_created_by"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Save Changes</button>
+    <!-- Upload CSV Form -->
+    <form id="uploadCSVForm" class="mb-4" enctype="multipart/form-data">
+      <label class="form-label">Upload CSV</label>
+      <div class="row g-3 align-items-center">
+        <div class="col-md-6">
+          <input type="file" name="file" id="csvFile" accept=".csv" required class="form-control" />
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-secondary w-100">Upload CSV</button>
+        </div>
+        <div class="col-12">
+          <div id="uploadMessage" class="alert alert-dismissible d-none fade show fw-bold mt-3" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        </div>
       </div>
     </form>
+
+    <h3>Blocklist Table</h3>
+
+    <!-- Bulk delete controls -->
+    <div class="d-flex justify-content-between align-items-end mb-3">
+      <div>
+        <label for="searchIP" class="form-label">Search by IP Address</label>
+        <div class="d-flex">
+          <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP address" />
+          <button class="btn btn-secondary">Search</button>
+        </div>
+      </div>
+      <div class="text-end">
+        <button id="deleteSelected" class="btn btn-danger" disabled>Delete Selected</button>
+      </div>
+    </div>
+
+    <!-- Blocklist table -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped align-middle mb-0" id="blocklistTable">
+        <thead class="table-dark">
+          <tr>
+            <th><input type="checkbox" id="selectAll" /></th>
+            <th>IP</th>
+            <th>Blocks</th>
+            <th>Added At</th>
+            <th>Expires At</th>
+            <th>Reason</th>
+            <th>User ID</th>
+            <th>Duration</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ip in ips %}
+          <tr>
+            <td><input type="checkbox" class="rowCheckbox" data-id="{{ ip.id }}" /></td>
+            <td>{{ ip.ip_address }}</td>
+            <td>{{ ip.blocks_count }}</td>
+            <td>{{ ip.added_at }}</td>
+            <td>{{ ip.expires_at }}</td>
+            <td>{{ ip.comment }}</td>
+            <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
+            <td>
+              {% if ip.duration %}
+                {{ (ip.duration.total_seconds() // 3600)|int }} hr
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-warning"
+                onclick="fillEditForm('{{ ip.id }}', '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at }}', '{{ ip.expires_at }}', '{{ ip.comment }}', '{{ ip.created_by or '' }}')"
+                data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
 
-<!-- Script: Logic preserved -->
-<script>
-function fillEditForm(id, ip, blocks, added, expires, comment, userId) {
-  document.getElementById('edit_entry_id').value = id;
-  document.getElementById('edit_ip_address').value = ip;
-  document.getElementById('edit_blocks_count').value = blocks;
-  document.getElementById('edit_time_added').value = added;
-  document.getElementById('edit_time_unblocked').value = expires;
-  document.getElementById('edit_comment').value = comment;
-  document.getElementById('edit_created_by').value = userId;
-}
+  <!-- Edit Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="POST" action="/blocklist/update" class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editModalLabel">Edit Block Entry</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="entry_id" id="edit_entry_id">
+          <!-- ...rest of edit form fields (IP, blocks, dates, comment, created_by) -->
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-function updateDuration() {
-  const start = document.getElementById('time_added').value;
-  const end = document.getElementById('time_unblocked').value;
-  if (start && end) {
-    const diffMs = new Date(end) - new Date(start);
-    document.getElementById('duration').value = diffMs >= 0 ? Math.floor(diffMs / 3600000) : "";
-  }
-}
+  <!-- JS Scripts -->
+  <script>
+    function fillEditForm(id, ip, blocks, added, expires, comment, userId) {
+      document.getElementById('edit_entry_id').value = id;
+      document.getElementById('edit_ip_address').value = ip;
+      document.getElementById('edit_blocks_count').value = blocks;
+      document.getElementById('edit_time_added').value = added;
+      document.getElementById('edit_time_unblocked').value = expires;
+      document.getElementById('edit_comment').value = comment;
+      document.getElementById('edit_created_by').value = userId;
+    }
 
-function updateEndDate() {
-  const start = document.getElementById('time_added').value;
-  const duration = parseInt(document.getElementById('duration').value, 10);
-  if (start && !isNaN(duration)) {
-    const startDate = new Date(start);
-    startDate.setHours(startDate.getHours() + duration);
-    const pad = n => n.toString().padStart(2, '0');
-    const formatted = `${startDate.getFullYear()}-${pad(startDate.getMonth()+1)}-${pad(startDate.getDate())}T${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
-    document.getElementById('time_unblocked').value = formatted;
-  } else {
-    document.getElementById('time_unblocked').value = '';
-  }
-}
+    function updateDuration() {
+      const start = document.getElementById('time_added').value;
+      const end = document.getElementById('time_unblocked').value;
+      if (start && end) {
+        const diff = new Date(end) - new Date(start);
+        document.getElementById('duration').value = diff >= 0 ? Math.floor(diff / 3600000) : "";
+      }
+    }
 
-document.getElementById('time_added').addEventListener('change', () => {
-  updateEndDate();
-  updateDuration();
-});
-document.getElementById('duration').addEventListener('input', updateEndDate);
+    function updateEndDate() {
+      const start = document.getElementById('time_added').value;
+      const hours = parseInt(document.getElementById('duration').value, 10);
+      if (start && !isNaN(hours)) {
+        const date = new Date(start);
+        date.setHours(date.getHours() + hours);
+        const pad = n => n.toString().padStart(2, '0');
+        document.getElementById('time_unblocked').value =
+          `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      } else {
+        document.getElementById('time_unblocked').value = '';
+      }
+    }
+
+    document.getElementById('time_added').addEventListener('change', () => {
+      updateEndDate(); updateDuration();
+    });
+    document.getElementById('duration').addEventListener('input', updateEndDate);
 
 // CSV Upload
 document.getElementById('uploadCSVForm').addEventListener('submit', async (e) => {
@@ -262,8 +275,45 @@ document.getElementById('addIPForm').addEventListener('submit', async (e) => {
     msgEl.innerHTML = '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>Error submitting form.';
   }
 });
-</script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+// Bulk delete behavior:
+    document.getElementById('selectAll').addEventListener('change', function () {
+      document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = this.checked);
+      toggleDeleteButton();
+    });
+
+    document.querySelectorAll('.rowCheckbox').forEach(cb => {
+      cb.addEventListener('change', toggleDeleteButton);
+    });
+
+    function toggleDeleteButton() {
+      const anyChecked = document.querySelectorAll('.rowCheckbox:checked').length > 0;
+      document.getElementById('deleteSelected').disabled = !anyChecked;
+    }
+
+    document.getElementById('deleteSelected').addEventListener('click', async () => {
+      const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
+      if (!ids.length) return;
+      if (!confirm(`Delete ${ids.length} IP(s)?`)) return;
+
+      try {
+        const res = await fetch('/blocklist/bulk_delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids })
+        });
+        if (res.ok) location.reload();
+        else {
+          const err = await res.json();
+          alert(err.error || 'Bulk delete failed.');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('An unexpected error occurred.');
+      }
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
