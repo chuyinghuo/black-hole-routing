@@ -28,6 +28,8 @@
     </form>
 
     <div id="message" class="mb-4 text-success fw-bold"></div>
+    <div id="errorList" class="mb-4 text-danger"></div>
+
 
     <h3>Safelist Table</h3>
 
@@ -215,6 +217,45 @@
     });
 
     fetchSafelist();
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('csvFile');
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    const response = await fetch(`${API_PREFIX}/upload`, {
+        method: 'POST',
+        body: formData
+    });
+
+    const result = await response.json();
+
+    // عرض رسالة النجاح (أو الخطأ العام)
+    const messageEl = document.getElementById('message');
+    const errorListEl = document.getElementById('errorList');
+
+    if (result.message) {
+        messageEl.textContent = result.message;
+        messageEl.className = "mb-4 text-success fw-bold";
+    } else if (result.error) {
+        messageEl.textContent = result.error;
+        messageEl.className = "mb-4 text-danger fw-bold";
+    } else {
+        messageEl.textContent = '';
+    }
+
+    // عرض الأخطاء التفصيلية كقائمة (إذا موجودة)
+    if (result.errors && result.errors.length > 0) {
+        errorListEl.innerHTML = '<ul>' + result.errors.map(err => `<li>${err}</li>`).join('') + '</ul>';
+    } else {
+        errorListEl.innerHTML = '';
+    }
+
+    fetchSafelist();
+    fileInput.value = '';  // تفريغ حقل الملف
+});
+
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

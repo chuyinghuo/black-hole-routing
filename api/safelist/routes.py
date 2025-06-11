@@ -80,7 +80,6 @@ def add_ip():
     db.session.add(entry)
     db.session.commit()
     return jsonify({'message': 'IP added successfully'}), 201
-
 @safelist_bp.route('/api/safelist/upload', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
@@ -107,17 +106,21 @@ def upload_csv():
         try:
             ipaddress.ip_network(ip_address, strict=False)
         except ValueError:
-            errors.append(f"Row {row_num}: Invalid IP '{ip_address}'")
+            errors.append(f"Row {row_num}: IP '{ip_address}' was not added because it is invalid")
             continue
 
         if Safelist.query.filter_by(ip_address=ip_address).first():
-            errors.append(f"Row {row_num}: IP '{ip_address}' already exists")
+            errors.append(f"Row {row_num}: IP '{ip_address}' was not added because it already exists in the safelist")
+            continue
+
+        if Blocklist.query.filter_by(ip_address=ip_address).first():
+            errors.append(f"Row {row_num}: IP '{ip_address}' was not added because it exists in the blocklist")
             continue
 
         try:
             duration_hours = int(duration_input)
         except (ValueError, TypeError):
-            errors.append(f"Row {row_num}: Invalid duration '{duration_input}'")
+            errors.append(f"Row {row_num}: IP '{ip_address}' was not added because the duration '{duration_input}' is invalid")
             continue
 
         now = datetime.now(timezone.utc)
@@ -137,7 +140,6 @@ def upload_csv():
 
     db.session.commit()
     return jsonify({'message': f'{added} IP(s) added', 'errors': errors})
-
 
 @safelist_bp.route('/api/safelist/<int:entry_id>', methods=['PUT'])
 def edit_ip(entry_id):
