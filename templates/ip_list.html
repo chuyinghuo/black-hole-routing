@@ -13,80 +13,80 @@
             color: #e2e6ea;
             text-decoration: underline;
         }
-        <style>
+        
         /* Global Theme */
         body {
             background-color: #f4f4f4;
             font-family: 'Segoe UI', sans-serif;
         }
-
+ 
         h1, h2 {
             color: #012169;
             font-weight: 600;
         }
-
+ 
         /* Table Styling */
         thead.table-dark {
             background-color: #012169 !important;
         }
-
+ 
         thead a {
             color: #ffffff;
             text-decoration: none;
         }
-
+ 
         thead a:hover {
             text-decoration: underline;
             color: #e0e0e0;
         }
-
+ 
         /* Buttons */
         .btn-primary {
             background-color: #012169;
             border-color: #012169;
         }
-
+ 
         .btn-primary:hover {
             background-color: #0b2a6b;
             border-color: #0b2a6b;
         }
-
+ 
         .btn-success {
             background-color: #00539B;
             border-color: #00539B;
         }
-
+ 
         .btn-success:hover {
             background-color: #004080;
             border-color: #004080;
         }
-
+ 
         .btn-warning {
             background-color: #ffc107;
             border-color: #ffc107;
             color: black;
         }
-
+ 
         .btn-warning:hover {
             background-color: #e0a800;
             border-color: #d39e00;
         }
-
+ 
         /* Modal headers */
         .modal-header {
             background-color: #012169;
             color: white;
         }
-
+ 
         /* Message text */
         #message.text-success {
             color: #198754;
         }
-
+ 
         #message.text-danger {
             color: #dc3545;
         }
-
+ 
         #message.text-info {
             color: #0dcaf0;
         }
@@ -94,7 +94,7 @@
 </head>
 <body class="bg-light">
 {% include 'sidebar.html' %}
-
+ 
 <div class="container mt-5">
     <h1 class="mb-3">Safelist Manager</h1>
 <br>
@@ -118,9 +118,9 @@
  
     <div class="d-flex justify-content-between align-items-end mb-3">
         <div>
-            <label for="searchIP" class="form-label">Search by IP Address</label>
+            <label  id="searchField" for="searchField" class="form-label">Search by IP Address , Comment , or Username</label>
             <div class="d-flex">
-                <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP address"
+                <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP address , Comment , or Username"
                     onkeypress="if(event.key === 'Enter'){ event.preventDefault(); searchIP(); }" />
                 <button class="btn btn-secondary" onclick="searchIP()">Search</button>
             </div>
@@ -212,6 +212,8 @@
     </div>
 </div>
  
+ 
+ 
 <script>
     const API_PREFIX = "/safelist/api/safelist";
     let currentSortField = 'id';
@@ -224,6 +226,7 @@
         renderSafelist(data);
         applySortIndicators();
     }
+ 
  
     function setSort(field) {
         if (currentSortField === field) {
@@ -242,24 +245,27 @@
         if (indicator) indicator.textContent = arrow;
     }
  
-    async function searchIP() {
-        const query = document.getElementById("searchIP").value.trim();
-        if (!query) {
-            fetchSafelist();
-            return;
-        }
-        try {
-            const response = await fetch(`${API_PREFIX}/search?ip=${encodeURIComponent(query)}`);
-            const data = await response.json();
-            if (response.ok) {
-                renderSafelist(data);
-            } else {
-                document.getElementById("message").textContent = data.error || "Search failed.";
-            }
-        } catch (err) {
-            document.getElementById("message").textContent = "An error occurred while searching.";
-        }
+async function searchIP() {
+    const field = document.getElementById("searchField").value;
+    const query = document.getElementById("searchIP").value.trim();
+    if (!query) {
+        fetchSafelist();
+        return;
     }
+ 
+    try {
+        // لاحظ أننا نرسل query فقط وليس اسم الحقل
+        const response = await fetch(`${API_PREFIX}/search?query=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        if (response.ok) {
+            renderSafelist(data);
+        } else {
+            document.getElementById("message").textContent = data.error || "Search failed.";
+        }
+    } catch (err) {
+        document.getElementById("message").textContent = "An error occurred while searching.";
+    }
+}
  
     function renderSafelist(data) {
         const tableBody = document.querySelector('#ipTable tbody');
@@ -394,3 +400,4 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+ 
