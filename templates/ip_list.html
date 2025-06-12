@@ -13,7 +13,84 @@
             color: #e2e6ea;
             text-decoration: underline;
         }
-    </style>
+        <style>
+        /* Global Theme */
+        body {
+            background-color: #f4f4f4;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        h1, h2 {
+            color: #012169;
+            font-weight: 600;
+        }
+
+        /* Table Styling */
+        thead.table-dark {
+            background-color: #012169 !important;
+        }
+
+        thead a {
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        thead a:hover {
+            text-decoration: underline;
+            color: #e0e0e0;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: #012169;
+            border-color: #012169;
+        }
+
+        .btn-primary:hover {
+            background-color: #0b2a6b;
+            border-color: #0b2a6b;
+        }
+
+        .btn-success {
+            background-color: #00539B;
+            border-color: #00539B;
+        }
+
+        .btn-success:hover {
+            background-color: #004080;
+            border-color: #004080;
+        }
+
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: black;
+        }
+
+        .btn-warning:hover {
+            background-color: #e0a800;
+            border-color: #d39e00;
+        }
+
+        /* Modal headers */
+        .modal-header {
+            background-color: #012169;
+            color: white;
+        }
+
+        /* Message text */
+        #message.text-success {
+            color: #198754;
+        }
+
+        #message.text-danger {
+            color: #dc3545;
+        }
+
+        #message.text-info {
+            color: #0dcaf0;
+        }
+        </style>
 </head>
 <body class="bg-light">
 {% include 'sidebar.html' %}
@@ -53,7 +130,7 @@
         </div>
     </div>
  
-    <h3>Safelist Table</h3>
+    <h2>Safelist Table</h2>
     <table class="table table-bordered table-striped" id="ipTable">
         <thead class="table-dark">
         <tr>
