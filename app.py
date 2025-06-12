@@ -4,6 +4,11 @@ from flask import Flask
 from flask_cors import CORS
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+from apscheduler.schedulers.background import BackgroundScheduler
+from models import Safelist
+from init_db import db
+
 
 # Set up base directory and sys.path
 BASE_DIR = Path(__file__).resolve().parent
@@ -32,6 +37,37 @@ def create_app():
     # Initialize the db with the app
     db.init_app(app)
 
+
+
+    # Cleanup job function needs app context:
+    def delete_expired_entries():
+        with app.app_context():
+            now = datetime.now(timezone.utc)
+            expired_entries = Safelist.query.filter(Safelist.expires_at <= now).all()
+            for entry in expired_entries:
+                db.session.delete(entry)
+            if expired_entries:
+                db.session.commit()
+            print(f"Deleted {len(expired_entries)} expired entries at {now}")
+
+    # Start scheduler here:
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=delete_expired_entries, trigger="interval", hours=24)
+    scheduler.start()
+
+    # Import models and blueprints after db is set
+    from models import User, Safelist, Blocklist
+    from api.blocklist.routes import blocklist_bp
+    from api.safelist.routes import safelist_bp
+    from api.users.routes import users_bp
+
+    # Register blueprints
+    app.register_blueprint(blocklist_bp, url_prefix="/blocklist")
+    app.register_blueprint(safelist_bp, url_prefix="/safelist")
+    app.register_blueprint(users_bp, url_prefix="/users")
+
+    return app
+
     # Import models and blueprints after db is set
     from models import User, Safelist, Blocklist
     from api.blocklist.routes import blocklist_bp
@@ -51,4 +87,5 @@ if __name__ == "__main__":
         print("Dropping and creating all tables in PostgreSQL...")
         #db.drop_all()
         db.create_all()
+
     app.run(debug=True)
