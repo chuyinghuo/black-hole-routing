@@ -7,7 +7,7 @@ from io import StringIO
 import csv
 from init_db import db
 from models import Blocklist, User, Safelist
-from sqlalchemy import cast, String, asc, desc
+from sqlalchemy import cast, String, asc, desc, or_
 
 # Add project root to sys.path for module access
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -100,7 +100,11 @@ def home():
 
         if search_term:
             ips = Blocklist.query.filter(
-                cast(Blocklist.ip_address, String).ilike(f"%{search_term}%")
+                or_(
+                    cast(Blocklist.ip_address, String).ilike(f"%{search_term}%"),
+                    cast(Blocklist.comment, String).ilike(f"%{search_term}%"),
+                    cast(Blocklist.created_by, String).ilike(f"%{search_term}%")
+                )
             ).order_by(sort_expr).all()
         else:
             ips = Blocklist.query.order_by(sort_expr).all()
