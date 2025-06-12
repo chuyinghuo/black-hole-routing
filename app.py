@@ -60,19 +60,6 @@ def create_app():
     from api.blocklist.routes import blocklist_bp
     from api.safelist.routes import safelist_bp
     from api.users.routes import users_bp
-
-    # Register blueprints
-    app.register_blueprint(blocklist_bp, url_prefix="/blocklist")
-    app.register_blueprint(safelist_bp, url_prefix="/safelist")
-    app.register_blueprint(users_bp, url_prefix="/users")
-
-    return app
-
-    # Import models and blueprints after db is set
-    from models import User, Safelist, Blocklist
-    from api.blocklist.routes import blocklist_bp
-    from api.safelist.routes import safelist_bp
-    from api.users.routes import users_bp
     from api.dashboard.routes import dashboard_bp
 
 

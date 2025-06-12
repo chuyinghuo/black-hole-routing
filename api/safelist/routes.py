@@ -50,7 +50,7 @@ def get_safelist():
  
 @safelist_bp.route('/')
 def index():
-    return render_template('ip_list.html')
+    return render_template('safelist.html')
  
 @safelist_bp.route('/api/safelist', methods=['POST'])
 def add_ip():
