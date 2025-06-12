@@ -17,7 +17,7 @@ class User(db.Model):
     __tablename__ = 'users'
  
     id = db.Column(db.Integer, primary_key=True, nullable=False)
-    net_id = db.Column(db.String(8), unique=True, nullable=False)
+    net_id = db.Column(db.String(10), unique=True, nullable=False)
     role = db.Column(SQLAlchemyEnum(UserRole, name='user_role'), nullable=False)
     added_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     token = db.Column(db.Text, nullable=False, unique=True)
@@ -94,7 +94,7 @@ class UserToken(db.Model):
  
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.Text, unique=True, index=True, nullable=False)
-    net_id = db.Column(db.String(8), db.ForeignKey('users.net_id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     revoked = db.Column(db.Boolean, default=False, nullable=False)
  

@@ -2,35 +2,41 @@ from faker import Faker
 import csv
 from random import choice, randint
 from datetime import datetime, timedelta as dt
-
+import random
+import string
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from models import UserRole
 
 fake = Faker()
 
+def generate_net_id():
+    letters = ''.join(random.choices(string.ascii_lowercase, k=random.randint(2, 3)))
+    digits = ''.join(random.choices(string.digits, k=random.randint(2, 3)))
+    return letters + digits
 
 # Generate fake Users, always includes "Apiary" and "Splunk"
+
 def generate_users(n):
     users = []
 
-    # Add Apiary and Splunk
+    # Add Apiary and Splunk explicitly
     special_users = ["Apiary", "Splunk"]
     for i, name in enumerate(special_users):
         users.append({
             "user_id": i + 1,
-            "username": name,
+            "net_id": name,
             "role": choice([r.value for r in UserRole]),
             "added_at": fake.date_time_this_year().isoformat(),
             "token": fake.sha256(),
             "active": True
         })
 
-    # Add the rest
+    # Add the rest with custom net_ids
     for i in range(n - len(special_users)):
         users.append({
             "user_id": i + 3,
-            "username": fake.user_name(),
+            "net_id": generate_net_id(),
             "role": choice([r.value for r in UserRole]),
             "added_at": fake.date_time_this_year().isoformat(),
             "token": fake.sha256(),
@@ -153,12 +159,12 @@ def write_csv(filename, fieldnames, rows):
 # Main function
 def main():
     users = generate_users(10)
-    write_csv("Users.csv", ["user_id", "username", "role", "added_at", "token", "active"], users)
+    write_csv("Users.csv", ["user_id", "net_id", "role", "added_at", "token", "active"], users)
 
     user_ids = [user["user_id"] for user in users]
-    usernames = {user["username"]: user["user_id"] for user in users}
-    apiary_id = usernames.get("Apiary")
-    splunk_id = usernames.get("Splunk")
+    net_id = {user["net_id"]: user["user_id"] for user in users}
+    apiary_id = net_id.get("Apiary")
+    splunk_id = net_id.get("Splunk")
 
     blocklist = generate_blocklist(20, user_ids, apiary_id, splunk_id)
     write_csv("Blocklist.csv", ["ip_address", "created_by", "comment", "added_at", "duration", "blocks_count", "expires_at"], blocklist)

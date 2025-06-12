@@ -13,10 +13,10 @@ def load_users():
     with app.app_context(), open(os.path.join(base_path, "Users.csv"), newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            if User.query.filter_by(net_id=row["user_id"]).first():
+            if User.query.filter_by(net_id=row["net_id"]).first():
                 continue
             db.session.add(User(
-                net_id=row["user_id"],
+                net_id=row["net_id"],
                 role=UserRole(row["role"]),
                 added_at=datetime.fromisoformat(row["added_at"]),
                 token=row["token"]
@@ -104,7 +104,7 @@ def load_user_tokens():
                 continue
             db.session.add(UserToken(
                 token=row["token"],
-                net_id=int(row["user_id"]),
+                user_id=int(row["user_id"]),
                 created_at=datetime.fromisoformat(row["created_at"]),
                 revoked=row["revoked"].lower() == "true"
                 # purpose removed
