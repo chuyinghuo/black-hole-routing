@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stat-card {
+            border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-card.primary { border-left-color: #0d6efd; }
+        .stat-card.success { border-left-color: #198754; }
+        .stat-card.warning { border-left-color: #ffc107; }
+        .stat-card.danger { border-left-color: #dc3545; }
+        .chart-container {
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+  /* Global Theme */
+  body {
+    background-color: #f4f4f4;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  h1, h2 {
+    color: #012169;
+    font-weight: 600;
+  }
+
+  /* Table Styling */
+  thead.table-dark {
+    background-color: #012169 !important;
+  }
+
+  thead a {
+    color: #ffffff;
+    text-decoration: none;
+  }
+
+  thead a:hover {
+    text-decoration: underline;
+    color: #e0e0e0;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    background-color: #012169;
+    border-color: #012169;
+  }
+
+  .btn-primary:hover {
+    background-color: #0b2a6b;
+    border-color: #0b2a6b;
+  }
+
+  .btn-success {
+    background-color: #00539B;
+    border-color: #00539B;
+  }
+
+  .btn-success:hover {
+    background-color: #004080;
+    border-color: #004080;
+  }
+
+  .btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: black;
+  }
+
+  .btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+  }
+
+  /* Modal headers */
+  .modal-header {
+    background-color: #012169;
+    color: white;
+  }
+
+  /* Message text */
+  #message.text-success {
+    color: #198754;
+  }
+
+  #message.text-danger {
+    color: #dc3545;
+  }
+
+  #message.text-info {
+    color: #0dcaf0;
+  }
+</style>
+</head>
+<body class="bg-light">
+{% include 'sidebar.html' %}
+
+    <div class="container-fluid px-4 py-5">
+        <h1 class="mb-4">Black Hole Router</h1>
+        <h2 class="mb-4">Welcome Paulina!</h2>
+
+        
+        <!-- Stats Row -->
+        <div class="row g-4 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card stat-card primary shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total Blocked IPs</h5>
+                        <h2 class="card-text" id="totalBlocked">0</h2>
+                        <p class="mb-0 text-muted">Active blocks</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card stat-card success shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total Safelisted IPs</h5>
+                        <h2 class="card-text" id="totalSafe">0</h2>
+                        <p class="mb-0 text-muted">Active safelist entries</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card stat-card warning shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Average Block Duration</h5>
+                        <h2 class="card-text" id="avgDuration">0h</h2>
+                        <p class="mb-0 text-muted">Per IP</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card stat-card danger shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Expiring Soon</h5>
+                        <h2 class="card-text" id="expiringSoon">0</h2>
+                        <p class="mb-0 text-muted">Within 24 hours</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row g-4">
+            <div class="col-xl-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Blocks by Creator</h5>
+                        <div class="chart-container">
+                            <canvas id="creatorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Timeline of Actions</h5>
+                        <div class="chart-container">
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">IP Type Distribution</h5>
+                        <div class="chart-container">
+                            <canvas id="ipTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Recent Activity</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Action</th>
+                                        <th>IP</th>
+                                        <th>User</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivity">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch and update dashboard data
+        async function updateDashboard() {
+            try {
+                console.log('Fetching dashboard data...');
+                const response = await fetch('/dashboard/data');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received data:', data);
+                
+                // Update stats
+                document.getElementById('totalBlocked').textContent = data.stats.total_blocked;
+                document.getElementById('totalSafe').textContent = data.stats.unique_sources;
+                document.getElementById('avgDuration').textContent = `${data.stats.avg_duration}h`;
+                document.getElementById('expiringSoon').textContent = data.stats.expiring_soon;
+
+                // Blocks by Creator Chart
+                new Chart(document.getElementById('creatorChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data.blocks_by_creator),
+                        datasets: [{
+                            label: 'Blocks Created',
+                            data: Object.values(data.blocks_by_creator),
+                            backgroundColor: '#012169'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+
+                // Timeline Chart
+                const timelineDates = Object.keys(data.timeline_data).sort();
+                new Chart(document.getElementById('timelineChart'), {
+                    type: 'line',
+                    data: {
+                        labels: timelineDates,
+                        datasets: [{
+                            label: 'Blocks Over Time',
+                            data: timelineDates.map(date => data.timeline_data[date]),
+                            borderColor: '#012169',  // Duke Royal
+                            fill: false,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true }
+                        }
+                    }
+                });
+
+
+                // IP Type Distribution Chart
+                new Chart(document.getElementById('ipTypeChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: ['IPv4', 'IPv6'],
+                        datasets: [{
+                            data: [
+                                data.ip_distribution.ipv4,
+                                data.ip_distribution.ipv6
+                            ],
+                            backgroundColor: ['#012169', '#b5b5b5'] // Duke Blue and Gold
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#333'
+                                }
+                            }
+                        }
+                    }
+                });
+
+
+                // Recent Activity Table
+                const recentActivity = document.getElementById('recentActivity');
+                recentActivity.innerHTML = '';
+                data.recent_activity.forEach(entry => {
+                    const row = recentActivity.insertRow();
+                    const time = new Date(entry.added_at).toLocaleString();
+                    row.innerHTML = `
+                        <td>${time}</td>
+                        <td>Block</td>
+                        <td>${entry.ip_address}</td>
+                        <td>${entry.created_by}</td>
+                    `;
+                });
+
+            } catch (error) {
+                console.error('Error in updateDashboard:', error);
+            }
+        }
+
+        // Ensure Chart.js is loaded before running
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js not loaded!');
+                return;
+            }
+            console.log('Starting dashboard update...');
+            updateDashboard();
+        });
+    </script>
+</body>
+</html>

@@ -2,101 +2,274 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Safelist IP Manager</title>
+    <title>Safelist Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        thead a {
+            color: white;
+            text-decoration: none;
+        }
+        thead a:hover {
+            color: #e2e6ea;
+            text-decoration: underline;
+        }
+        
+        /* Global Theme */
+        body {
+            background-color: #f4f4f4;
+            font-family: 'Segoe UI', sans-serif;
+        }
+ 
+        h1, h2 {
+            color: #012169;
+            font-weight: 600;
+        }
+ 
+        /* Table Styling */
+        thead.table-dark {
+            background-color: #012169 !important;
+        }
+ 
+        thead a {
+            color: #ffffff;
+            text-decoration: none;
+        }
+ 
+        thead a:hover {
+            text-decoration: underline;
+            color: #e0e0e0;
+        }
+ 
+        /* Buttons */
+        .btn-primary {
+            background-color: #012169;
+            border-color: #012169;
+        }
+ 
+        .btn-primary:hover {
+            background-color: #0b2a6b;
+            border-color: #0b2a6b;
+        }
+ 
+        .btn-success {
+            background-color: #00539B;
+            border-color: #00539B;
+        }
+ 
+        .btn-success:hover {
+            background-color: #004080;
+            border-color: #004080;
+        }
+ 
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: black;
+        }
+ 
+        .btn-warning:hover {
+            background-color: #e0a800;
+            border-color: #d39e00;
+        }
+ 
+        /* Modal headers */
+        .modal-header {
+            background-color: #012169;
+            color: white;
+        }
+ 
+        /* Message text */
+        #message.text-success {
+            color: #198754;
+        }
+ 
+        #message.text-danger {
+            color: #dc3545;
+        }
+ 
+        #message.text-info {
+            color: #0dcaf0;
+        }
+        </style>
 </head>
 <body class="bg-light">
+{% include 'sidebar.html' %}
+ 
 <div class="container mt-5">
-    <h2 class="mb-4">Add IP to Safelist</h2>
-
-    <form id="ipForm" class="row g-3 mb-4">
-        <div class="col-md-4">
-            <label for="ip_address" class="form-label">IP Address</label>
-            <input type="text" class="form-control" id="ip_address" required />
-        </div>
-        <div class="col-md-4">
-            <label for="comment" class="form-label">Comment</label>
-            <input type="text" class="form-control" id="comment" />
-        </div>
-        <div class="col-md-2">
-            <label for="duration" class="form-label">Duration (hours)</label>
-            <input type="number" class="form-control" id="duration" required />
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary w-100">Add IP</button>
-        </div>
-    </form>
-
+    <h1 class="mb-3">Safelist Manager</h1>
+<br>
+ 
+    <div class="mb-3">
+        <button id="showFormBtn" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addIpModal">
+             Add IP
+        </button>
+ 
+        <form id="uploadForm" class="d-inline-block" enctype="multipart/form-data">
+            <input type="file" name="file" id="csvFile" accept=".csv" class="d-none"
+                required onchange="document.getElementById('uploadForm').requestSubmit()" />
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('csvFile').click()">
+                Upload CSV
+            </button>
+        </form>
+    </div>
+    <hr />
     <div id="message" class="mb-4 text-success fw-bold"></div>
-
-    <h3>Safelist Table</h3>
-
-    <form id="uploadForm" class="mb-3" enctype="multipart/form-data">
-        <input type="file" name="file" id="csvFile" accept=".csv" class="form-control mb-2" required />
-        <button type="submit" class="btn btn-secondary">Upload CSV</button>
-    </form>
-
-    <button id="deleteSelected" class="btn btn-danger mb-3" disabled>Delete Selected</button>
-
+    <div id="errorList" class="mb-4 text-danger"></div>
+ 
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <div>
+            <label  id="searchField" for="searchField" class="form-label">Search by IP Address , Comment , or Username</label>
+            <div class="d-flex">
+                <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP address , Comment , or Username"
+                    onkeypress="if(event.key === 'Enter'){ event.preventDefault(); searchIP(); }" />
+                <button class="btn btn-secondary" onclick="searchIP()">Search</button>
+            </div>
+        </div>
+        <div class="text-end">
+            <button id="deleteSelected" class="btn btn-danger" disabled>Delete Selected</button>
+        </div>
+    </div>
+ 
+    <h2>Safelist Table</h2>
     <table class="table table-bordered table-striped" id="ipTable">
         <thead class="table-dark">
         <tr>
             <th><input type="checkbox" id="selectAll" /></th>
-            <th>ID</th>
-            <th>IP Address</th>
-            <th>Comment</th>
-            <th>Created By</th>
-            <th>Added At</th>
-            <th>Expires At</th>
-            <th>Duration (hrs)</th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('id')">ID <span id="sort-id"></span></a></th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('ip_address')">IP Address <span id="sort-ip_address"></span></a></th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('comment')">Comment <span id="sort-comment"></span></a></th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('created_by')">Created By <span id="sort-created_by"></span></a></th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('added_at')">Added At <span id="sort-added_at"></span></a></th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('expires_at')">Expires At <span id="sort-expires_at"></span></a></th>
+            <th><a href="#" onclick="event.preventDefault(); setSort('duration')">Duration (hrs) <span id="sort-duration"></span></a></th>
             <th>Actions</th>
         </tr>
         </thead>
         <tbody></tbody>
     </table>
 </div>
-
-<!-- Modal for Update -->
-<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+ 
+<!-- Add IP Modal -->
+<div class="modal fade" id="addIpModal" tabindex="-1" aria-labelledby="addIpModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="updateForm">
+      <form id="ipForm">
         <div class="modal-header">
-          <h5 class="modal-title" id="updateModalLabel">Update IP Entry</h5>
+          <h5 class="modal-title" id="addIpModalLabel">Add IP to Safelist</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <input type="hidden" id="updateId">
           <div class="mb-3">
-            <label for="updateIP" class="form-label">IP Address</label>
-            <input type="text" class="form-control" id="updateIP" required>
+            <label for="ip_address" class="form-label">IP Address</label>
+            <input type="text" class="form-control" id="ip_address" placeholder="e.g. 192.168.1.1" required />
           </div>
           <div class="mb-3">
-            <label for="updateComment" class="form-label">Comment</label>
-            <input type="text" class="form-control" id="updateComment">
+            <label for="comment" class="form-label">Comment</label>
+            <input type="text" class="form-control" id="comment" placeholder="Optional comment" />
           </div>
           <div class="mb-3">
-            <label for="updateEnding" class="form-label">Expires At</label>
-            <input type="datetime-local" class="form-control" id="updateEnding">
+            <label for="duration" class="form-label">Duration (hrs)</label>
+            <input type="number" class="form-control" id="duration" placeholder="e.g. 24" required />
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="submit" class="btn btn-success">➕ Add IP</button>
         </div>
       </form>
     </div>
   </div>
 </div>
-
+ 
+<!-- Update Modal -->
+<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="updateForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateModalLabel">Update IP Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="updateId">
+                    <div class="mb-3">
+                        <label for="updateIP" class="form-label">IP Address</label>
+                        <input type="text" class="form-control" id="updateIP" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="updateComment" class="form-label">Comment</label>
+                        <input type="text" class="form-control" id="updateComment">
+                    </div>
+                    <div class="mb-3">
+                        <label for="updateEnding" class="form-label">Expires At</label>
+                        <input type="datetime-local" class="form-control" id="updateEnding">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+ 
+ 
+ 
 <script>
     const API_PREFIX = "/safelist/api/safelist";
-
+    let currentSortField = 'id';
+    let currentSortOrder = 'asc';
+ 
     async function fetchSafelist() {
-        const response = await fetch(API_PREFIX);
+        const params = new URLSearchParams({ sort: currentSortField, order: currentSortOrder });
+        const response = await fetch(`${API_PREFIX}?${params.toString()}`);
         const data = await response.json();
+        renderSafelist(data);
+        applySortIndicators();
+    }
+ 
+ 
+    function setSort(field) {
+        if (currentSortField === field) {
+            currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSortField = field;
+            currentSortOrder = 'asc';
+        }
+        fetchSafelist();
+    }
+ 
+    function applySortIndicators() {
+        document.querySelectorAll("thead span").forEach(el => el.textContent = "");
+        const arrow = currentSortOrder === "asc" ? "↑" : "↓";
+        const indicator = document.getElementById(`sort-${currentSortField}`);
+        if (indicator) indicator.textContent = arrow;
+    }
+ 
+async function searchIP() {
+    const field = document.getElementById("searchField").value;
+    const query = document.getElementById("searchIP").value.trim();
+    if (!query) {
+        fetchSafelist();
+        return;
+    }
+ 
+    try {
+        // لاحظ أننا نرسل query فقط وليس اسم الحقل
+        const response = await fetch(`${API_PREFIX}/search?query=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        if (response.ok) {
+            renderSafelist(data);
+        } else {
+            document.getElementById("message").textContent = data.error || "Search failed.";
+        }
+    } catch (err) {
+        document.getElementById("message").textContent = "An error occurred while searching.";
+    }
+}
+ 
+    function renderSafelist(data) {
         const tableBody = document.querySelector('#ipTable tbody');
         tableBody.innerHTML = '';
-
         data.forEach(entry => {
             const row = `
                 <tr>
@@ -105,20 +278,19 @@
                     <td>${entry.ip_address}</td>
                     <td>${entry.comment || ''}</td>
                     <td>${entry.created_by || ''}</td>
-                    <td>${entry.added_at || ''}</td>
-                    <td>${entry.expires_at || ''}</td>
+                    <td>${entry.added_at ? new Date(entry.added_at).toLocaleString() : ''}</td>
+                    <td>${entry.expires_at ? new Date(entry.expires_at).toLocaleString() : ''}</td>
                     <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
                     <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
-                </tr>
-            `;
+                </tr>`;
             tableBody.innerHTML += row;
         });
-
+ 
         updateDeleteButtonState();
         document.querySelectorAll('.rowCheckbox').forEach(cb => {
             cb.addEventListener('change', updateDeleteButtonState);
         });
-
+ 
         document.querySelectorAll('.updateBtn').forEach(button => {
             button.addEventListener('click', (e) => {
                 const id = e.target.dataset.id;
@@ -126,50 +298,45 @@
                 document.getElementById('updateId').value = id;
                 document.getElementById('updateIP').value = row.children[2].textContent.trim();
                 document.getElementById('updateComment').value = row.children[3].textContent.trim();
-
                 const rawDate = row.children[6].textContent.trim();
                 const dt = new Date(rawDate);
-                if (!isNaN(dt)) {
-                    document.getElementById('updateEnding').value = dt.toISOString().slice(0, 16);
-                } else {
-                    document.getElementById('updateEnding').value = '';
-                }
-
+                document.getElementById('updateEnding').value = isNaN(dt) ? '' : dt.toISOString().slice(0, 16);
                 const modal = new bootstrap.Modal(document.getElementById('updateModal'));
                 modal.show();
             });
         });
     }
-
+ 
     function updateDeleteButtonState() {
         const checkboxes = document.querySelectorAll('.rowCheckbox:checked');
         document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
     }
-
+ 
     document.getElementById('ipForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const ip = document.getElementById('ip_address').value;
         const comment = document.getElementById('comment').value;
         const duration = document.getElementById('duration').value;
-
+ 
         const response = await fetch(API_PREFIX, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip_address: ip, comment, created_by: 1, duration })  // Replace 1 with actual user ID
+            body: JSON.stringify({ ip_address: ip, comment, created_by: 1, duration })
         });
-
+ 
         const result = await response.json();
         document.getElementById('message').textContent = result.message || result.error || '';
         fetchSafelist();
         e.target.reset();
+        bootstrap.Modal.getInstance(document.getElementById('addIpModal')).hide();
     });
-
+ 
     document.getElementById('selectAll').addEventListener('change', (e) => {
         const checked = e.target.checked;
         document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = checked);
         updateDeleteButtonState();
     });
-
+ 
     document.getElementById('deleteSelected').addEventListener('click', async () => {
         const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
         for (let id of ids) {
@@ -177,46 +344,60 @@
         }
         fetchSafelist();
     });
-
+ 
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const fileInput = document.getElementById('csvFile');
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
-
-        const response = await fetch(`${API_PREFIX}/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
+ 
+        const response = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: formData });
         const result = await response.json();
-        document.getElementById('message').textContent = result.message || result.error || '';
+        const messageEl = document.getElementById('message');
+        const errorListEl = document.getElementById('errorList');
+ 
+        if (result.message) {
+            messageEl.textContent = result.message;
+            messageEl.className = "mb-4 text-success fw-bold";
+        } else if (result.error) {
+            messageEl.textContent = result.error;
+            messageEl.className = "mb-4 text-danger fw-bold";
+        } else {
+            messageEl.textContent = '';
+        }
+ 
+        if (result.errors && result.errors.length > 0) {
+            errorListEl.innerHTML = '<ul>' + result.errors.map(err => `<li>${err}</li>`).join('') + '</ul>';
+        } else {
+            errorListEl.innerHTML = '';
+        }
+ 
         fetchSafelist();
+        fileInput.value = '';
     });
-
+ 
     document.getElementById('updateForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('updateId').value;
         const ip = document.getElementById('updateIP').value;
         const comment = document.getElementById('updateComment').value;
         const expires = document.getElementById('updateEnding').value;
-
+ 
         const res = await fetch(`${API_PREFIX}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ip_address: ip, comment: comment, expires_at: expires })
         });
-
+ 
         const result = await res.json();
         document.getElementById('message').textContent = result.message || result.error || '';
-
         bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
         fetchSafelist();
     });
-
+ 
     fetchSafelist();
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+ 
