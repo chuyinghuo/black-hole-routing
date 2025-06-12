@@ -298,9 +298,13 @@
       }
     }
   }
+const timeAdded = document.getElementById('edit_time_added');
+const timeUnblocked = document.getElementById('edit_time_unblocked');
 
-  document.getElementById('time_added').addEventListener('change', updateDuration);
-  document.getElementById('time_unblocked').addEventListener('change', updateDuration);
+if (timeAdded && timeUnblocked) {
+  timeAdded.addEventListener('change', updateDuration);
+  timeUnblocked.addEventListener('change', updateDuration);
+}
 
   document.getElementById('selectAll').addEventListener('change', function () {
     const checked = this.checked;
