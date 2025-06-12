@@ -233,7 +233,7 @@
                         datasets: [{
                             label: 'Blocks Created',
                             data: Object.values(data.blocks_by_creator),
-                            backgroundColor: '#0d6efd'
+                            backgroundColor: '#012169'
                         }]
                     },
                     options: {
@@ -251,16 +251,20 @@
                         datasets: [{
                             label: 'Blocks Over Time',
                             data: timelineDates.map(date => data.timeline_data[date]),
-                            borderColor: '#198754',
+                            borderColor: '#012169',  // Duke Royal
                             fill: false,
-                            tension: 0.1
+                            tension: 0.3
                         }]
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true }
+                        }
                     }
                 });
+
 
                 // IP Type Distribution Chart
                 new Chart(document.getElementById('ipTypeChart'), {
@@ -272,14 +276,23 @@
                                 data.ip_distribution.ipv4,
                                 data.ip_distribution.ipv6
                             ],
-                            backgroundColor: ['#0d6efd', '#dc3545']
+                            backgroundColor: ['#012169', '#b5b5b5'] // Duke Blue and Gold
                         }]
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#333'
+                                }
+                            }
+                        }
                     }
                 });
+
 
                 // Recent Activity Table
                 const recentActivity = document.getElementById('recentActivity');
