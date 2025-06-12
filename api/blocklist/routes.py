@@ -6,7 +6,7 @@ import os
 from io import StringIO
 import csv
 from init_db import db
-from models import Blocklist, User, Safelist
+from models import Blocklist, User, Safelist ,BlockHistory
 from sqlalchemy import cast, String, asc, desc, or_
 
 # Add project root to sys.path for module access
@@ -19,8 +19,9 @@ def home():
     try:
         if request.method == "POST":
             data = request.get_json() or request.form
+
             # Parse time fields
-            time_added_str = data.get("time_added")  # likely to be None
+            time_added_str = data.get("time_added")
             duration_input = data.get("duration")
             time_added = datetime.strptime(time_added_str, "%Y-%m-%dT%H:%M") if time_added_str else datetime.utcnow()
 
@@ -34,10 +35,12 @@ def home():
 
             ip_address = data.get("ip_address")
             comment = data.get("comment") or ""
+
             try:
                 blocks_count = int(data.get("blocks_count"))
             except (ValueError, TypeError):
                 blocks_count = 1
+
             created_by_input = data.get("created_by")
 
             try:
@@ -45,14 +48,33 @@ def home():
             except ValueError:
                 return jsonify({'error': 'Invalid IP address or subnet'}), 400
 
-            if Blocklist.query.filter_by(ip_address=ip_address).first():
-                return jsonify({'error': 'IP already exists in blocklist'}), 400
+            # Check if IP exists in Blocklist
+            existing_entry = Blocklist.query.filter_by(ip_address=ip_address).first()
+            if existing_entry:
+                existing_entry.blocks_count += 1
+                existing_entry.added_at = datetime.utcnow()
+                existing_entry.expires_at = time_unblocked
+                existing_entry.duration = duration
+                existing_entry.comment = comment
 
+                history_entry = BlockHistory(
+                    ip_address=ip_address,
+                    created_by=existing_entry.created_by,
+                    comment=existing_entry.comment,
+                    added_at=datetime.utcnow(),
+                    unblocked_at=existing_entry.expires_at,
+                )
+                db.session.add(history_entry)
+                db.session.commit()
+
+                return jsonify({'message': 'IP already existed, updated block count and time.'}), 200
+
+            # Check if IP exists in Safelist
             if Safelist.query.filter_by(ip_address=ip_address).first():
                 return jsonify({'error': 'IP already exists in safelist, delete it from safelist before adding to blocklist'}), 400
 
+            # Get created_by from user id
             created_by = None
-            created_by_input = request.form.get("created_by")
             if created_by_input:
                 try:
                     user_id = int(created_by_input)
@@ -62,11 +84,12 @@ def home():
                 except ValueError:
                     pass
 
+            # Insert new Blocklist entry
             ip_entry = Blocklist(
                 ip_address=ip_address,
-                blocks_count=blocks_count,
-                added_at=time_added.strftime('%m/%d/%y, %I:%M %p') if time_added else None,
-                expires_at=time_unblocked.strftime('%m/%d/%y, %I:%M %p') if time_unblocked else None,
+                blocks_count=1,
+                added_at=time_added,
+                expires_at=time_unblocked,
                 duration=duration,
                 comment=comment,
                 created_by=created_by
@@ -74,12 +97,12 @@ def home():
             db.session.add(ip_entry)
             db.session.commit()
             return jsonify({'message': 'IP added successfully'}), 201
-        else:
-            db.session.rollback()
+
     except Exception as e:
         print(f"Error adding IP: {e}")
         db.session.rollback()
 
+    # GET method: listing and searching
     try:
         search_term = request.args.get("search", "").strip()
         sort_column = request.args.get("sort", "added_at")
