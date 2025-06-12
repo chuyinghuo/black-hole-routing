@@ -3,14 +3,14 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from init_db import db
-from models import User, UserRole
+from models import User, UserRole, UserToken
 from datetime import datetime
 
 users_bp = Blueprint('users', __name__, template_folder='templates')
 
 @users_bp.route('/')
 def add_user_form():
-    return render_template('add_user.html')
+    return render_template('users.html')
 
 @users_bp.route('/add-user', methods=['POST'])
 def add_user():
@@ -81,7 +81,8 @@ def get_users():
             "net_id": user.net_id,
             "role": user.role.value,
             "added_at": user.added_at.isoformat(),
-            "token": user.token
+            "token": user.token,
+            "active": user.active
         } for user in users]
         return jsonify({"users": data}), 200
     except Exception as e:
@@ -111,16 +112,23 @@ def update_user(user_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+
 @users_bp.route('/remove-user/<int:user_id>', methods=['DELETE'])
-def delete_user(user_id):
+def revoke_user(user_id):
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({'error': 'User not found'}), 404
+    user.active = False
+    db.session.commit()
+    return jsonify({'message': f'User {user.net_id} revoked successfully'}), 200
 
-    try:
-        db.session.delete(user)
-        db.session.commit()
-        return jsonify({"message": "User deleted successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+@users_bp.route('/reinstate-user/<int:user_id>', methods=['POST'])
+def reinstate_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if user.active:
+        return jsonify({'message': 'User is already active'}), 200
+    user.active = True
+    db.session.commit()
+    return jsonify({'message': f'User {user.net_id} reinstated successfully'}), 200

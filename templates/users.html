@@ -14,7 +14,17 @@
       text-decoration: underline;
       color: #f8f9fa;
     }
-    <style>
+
+    .revoked-user-row {
+        color: #999 !important;
+        background-color: #f8f9fa !important;
+    }
+
+    .revoked-user-row td, .revoked-user-row th {
+        text-decoration: line-through;
+    }
+
+  <style>
   /* Global Theme */
   body {
     background-color: #f4f4f4;
@@ -277,6 +287,7 @@ async function loadUsers() {
 
   data.users.forEach(user => {
     const row = document.createElement("tr");
+    if (!user.active) row.classList.add("revoked-user-row");
     row.innerHTML = `
       <td>${user.id}</td>
       <td>${user.net_id}</td>
@@ -284,8 +295,12 @@ async function loadUsers() {
       <td>${new Date(user.added_at).toLocaleString()}</td>
       <td class="text-truncate" style="max-width: 300px">${user.token}</td>
       <td>
-        <button class="btn btn-warning btn-sm me-1" onclick="showUpdateModal(${user.id}, '${user.net_id}', '${user.role}', '${user.token}')">Update</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>
+        <button class="btn btn-warning btn-sm me-1" onclick="showUpdateModal(${user.id}, '${user.net_id}', '${user.role}', '${user.token}')" ${user.active ? '' : 'disabled'}>Update</button>
+        ${
+          user.active ?
+          `<button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>` :
+          `<button class="btn btn-success btn-sm" onclick="reinstateUser(${user.id})">Reinstate</button>`
+        }
       </td>
     `;
     usersTableBody.appendChild(row);
@@ -328,6 +343,16 @@ async function deleteUser(id) {
   const result = await res.json();
   showMessage(result.message || result.error, res.ok ? "success" : "danger");
   loadUsers();
+}
+
+async function reinstateUser(id) {
+  if (!confirm("Are you sure you want to reinstate this user?")) return;
+  const res = await fetch(`/users/reinstate-user/${id}`, {
+    method: "POST"
+  });
+  const data = await res.json();
+  showMessage(data.message || data.error, res.ok ? "success" : "danger");
+  loadUsers(); // Refresh the user table to reflect changes
 }
 
 function showMessage(msg, type = "info") {

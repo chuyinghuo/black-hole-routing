@@ -20,7 +20,8 @@ def generate_users(n):
             "user_id": i + 1,
             "role": choice([r.value for r in UserRole]),
             "added_at": fake.date_time_this_year().isoformat(),
-            "token": fake.sha256()
+            "token": fake.sha256(),
+            "active" : True
         })
     return users
 
@@ -124,7 +125,7 @@ def write_csv(filename, fieldnames, rows):
 # Main function
 def main():
     users = generate_users(10)
-    write_csv("Users.csv", ["user_id", "role", "added_at", "token"], users)
+    write_csv("Users.csv", ["user_id", "role", "added_at", "token", "active"], users)
 
     user_ids = [user["user_id"] for user in users]
 

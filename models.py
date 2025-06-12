@@ -21,7 +21,8 @@ class User(db.Model):
     role = db.Column(SQLAlchemyEnum(UserRole, name='user_role'), nullable=False)
     added_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     token = db.Column(db.Text, nullable=False, unique=True)
- 
+    active = db.Column(db.Boolean, default=True, nullable=False)
+
     blocklist_entries = db.relationship('Blocklist', backref='owner', lazy=True)
     safelist_entries = db.relationship('Safelist', backref='owner', lazy=True)
     historical_entries = db.relationship('Historical', backref='owner', lazy=True)
@@ -93,7 +94,7 @@ class UserToken(db.Model):
  
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.Text, unique=True, index=True, nullable=False)
-    net_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    net_id = db.Column(db.String(8), db.ForeignKey('users.net_id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     revoked = db.Column(db.Boolean, default=False, nullable=False)
  
