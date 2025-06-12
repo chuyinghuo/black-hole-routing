@@ -108,9 +108,9 @@
 
   <div class="d-flex justify-content-between align-items-end mb-3">
     <div>
-      <label for="searchIP" class="form-label">Search by IP Address</label>
+      <label for="searchIP" class="form-label">Search</label>
       <div class="d-flex">
-        <input type="text" class="form-control w-auto me-2" id="searchIP" name="search" placeholder="Enter IP address"
+        <input type="text" class="form-control w-auto me-2" id="searchIP" name="search" placeholder="Enter IP, User, Reason"
                value="{{ request.args.get('search', '') }}" onkeypress="if(event.key === 'Enter'){ event.preventDefault(); searchIP(); }" />
         <button class="btn btn-secondary" onclick="searchIP()">Search</button>
       </div>
