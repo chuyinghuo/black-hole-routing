@@ -95,8 +95,8 @@ def update_user(user_id):
         return jsonify({"error": "User not found"}), 404
 
     data = request.get_json()
-    if "net_id" in data:
-        user.net_id = data["net_id"]
+    #if "net_id" in data:
+    #    user.net_id = data["net_id"]
     if "role" in data:
         try:
             user.role = UserRole(data["role"])

@@ -197,10 +197,7 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="updateId" />
-        <div class="mb-3">
-          <label for="updateNetId" class="form-label">Net ID</label>
-          <input type="text" class="form-control" id="updateNetId" required />
-        </div>
+        
         <div class="mb-3">
           <label for="updateToken" class="form-label">Token</label>
           <input type="text" class="form-control" id="updateToken" required />
@@ -244,7 +241,7 @@ form.addEventListener("submit", async (e) => {
   const res = await fetch(`${API_PREFIX}/add-user`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ net_id, token, role })
+    body: JSON.stringify({ token, role })
   });
   const data = await res.json();
   res.ok ? (showMessage("User added.", "success"), form.reset(), bootstrap.Modal.getInstance(document.getElementById("addUserModal")).hide(), loadUsers()) : showMessage(data.error, "danger");
@@ -309,7 +306,6 @@ async function loadUsers() {
 
 function showUpdateModal(id, net_id, role, token) {
   document.getElementById("updateId").value = id;
-  document.getElementById("updateNetId").value = net_id;
   document.getElementById("updateRole").value = role;
   document.getElementById("updateToken").value = token;
   new bootstrap.Modal(document.getElementById("updateModal")).show();
@@ -318,7 +314,6 @@ function showUpdateModal(id, net_id, role, token) {
 document.getElementById("updateForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("updateId").value;
-  const net_id = document.getElementById("updateNetId").value.trim();
   const role = document.getElementById("updateRole").value;
   const token = document.getElementById("updateToken").value.trim();
 
