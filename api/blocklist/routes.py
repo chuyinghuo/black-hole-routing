@@ -135,9 +135,8 @@ def home():
     except Exception as e:
         print(f"Error fetching IPs: {e}")
         ips = []
-
-    return render_template("blocklist.html", ips=ips)
-
+    message = request.args.get("message")
+    return render_template("blocklist.html", ips=ips, message=message)
 
 @blocklist_bp.route("/search", methods=["GET"])
 def search_ip():
@@ -167,33 +166,39 @@ def update():
         entry_id = request.form.get("entry_id")
         ip_entry = Blocklist.query.get(entry_id)
 
-        if ip_entry:
-            ip_entry.ip_address = request.form.get("ip_address")
-            ip_entry.comment = request.form.get("comment")
-            ip_entry.added_at = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
-            ip_entry.expires_at = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
-            ip_entry.duration = ip_entry.expires_at - ip_entry.added_at
+        if not ip_entry:
+            return redirect("/blocklist/?message=IP+not+found")
 
+        ip_entry.ip_address = request.form.get("ip_address")
+        ip_entry.comment = request.form.get("comment")
+        ip_entry.added_at = datetime.strptime(request.form.get("time_added"), "%Y-%m-%dT%H:%M")
+        ip_entry.expires_at = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
+        ip_entry.duration = ip_entry.expires_at - ip_entry.added_at
+
+        if ip_entry.duration.total_seconds() < 3600:
+            return redirect("/blocklist/?message=Duration+must+be+at+least+1+hour")
+
+        try:
+            ip_entry.blocks_count = int(request.form.get("blocks_count"))
+        except (ValueError, TypeError):
+            ip_entry.blocks_count = 1
+
+        created_by_input = request.form.get("created_by")
+        if created_by_input:
             try:
-                ip_entry.blocks_count = int(request.form.get("blocks_count"))
-            except (ValueError, TypeError):
-                ip_entry.blocks_count = 1
+                user_id = int(created_by_input)
+                user = User.query.get(user_id)
+                ip_entry.created_by = user.id if user else None
+            except ValueError:
+                ip_entry.created_by = None
 
-            created_by_input = request.form.get("created_by")
-            if created_by_input:
-                try:
-                    user_id = int(created_by_input)
-                    user = User.query.get(user_id)
-                    ip_entry.created_by = user.id if user else None
-                except ValueError:
-                    ip_entry.created_by = None
+        db.session.commit()
+        return redirect("/blocklist/?message=IP+updated+successfully")
 
-            db.session.commit()
     except Exception as e:
         print(f"Error updating IP: {e}")
         db.session.rollback()
-    return redirect("/blocklist/")
-
+        return redirect("/blocklist/?message=Error+updating+IP")
 
 @blocklist_bp.route("/delete", methods=["POST"])
 def delete():

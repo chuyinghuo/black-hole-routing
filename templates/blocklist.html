@@ -96,6 +96,12 @@
 {% include 'sidebar.html' %}
 
 <div class="container mt-5">
+  {% if message %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ message.replace("+", " ") }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+{% endif %}
   <h1 class="mb-3">Blocklist Manager</h1>
   <div class="mb-3">
     <button id="showFormBtn" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addIPModal">Add IP</button>
@@ -298,13 +304,14 @@
       }
     }
   }
-const timeAdded = document.getElementById('edit_time_added');
-const timeUnblocked = document.getElementById('edit_time_unblocked');
 
-if (timeAdded && timeUnblocked) {
-  timeAdded.addEventListener('change', updateDuration);
-  timeUnblocked.addEventListener('change', updateDuration);
-}
+  const timeAdded = document.getElementById('edit_time_added');
+  const timeUnblocked = document.getElementById('edit_time_unblocked');
+
+  if (timeAdded && timeUnblocked) {
+    timeAdded.addEventListener('change', updateDuration);
+    timeUnblocked.addEventListener('change', updateDuration);
+  }
 
   document.getElementById('selectAll').addEventListener('change', function () {
     const checked = this.checked;
@@ -352,35 +359,11 @@ if (timeAdded && timeUnblocked) {
     const newQuery = params.toString();
     window.location.href = window.location.pathname + (newQuery ? "?" + newQuery : "");
   }
-  document.getElementById("addIPForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
 
-    const form = e.target;
-    const formData = new FormData(form);
-    const data = {};
-    formData.forEach((value, key) => {
-      data[key] = value;
-    });
-
-    try {
-      const response = await fetch("/blocklist/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      });
-
-      if (response.ok) {
-        const modal = bootstrap.Modal.getInstance(document.getElementById("addIPModal"));
-        modal.hide();
-        form.reset();
-        window.location.reload(); // Refresh to show new entry
-      } else {
-        const result = await response.json();
-        alert("Failed to add IP: " + (result.error || "Unknown error"));
-      }
-    } catch (error) {
-      console.error("Add IP Error:", error);
-      alert("An unexpected error occurred.");
+  document.querySelector('#editModal form').addEventListener('submit', function (e) {
+    const confirmed = confirm('Are you sure you want to update this IP entry?');
+    if (!confirmed) {
+      e.preventDefault();
     }
   });
 </script>
