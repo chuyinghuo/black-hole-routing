@@ -1,46 +1,44 @@
-/* Link styles */
-.stat-card {
-            border-left: 4px solid;
-            transition: transform 0.2s;
-        }
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        .stat-card.primary { border-left-color: #0d6efd; }
-        .stat-card.success { border-left-color: #198754; }
-        .stat-card.warning { border-left-color: #ffc107; }
-        .stat-card.danger { border-left-color: #dc3545; }
-        .chart-container {
-            height: 300px;
-            margin-bottom: 1rem;
-        }
-thead a {
-    color: white;
-    text-decoration: none;
-}
+/* ==========================================================================
+   GLOBAL BASE STYLES
+   ========================================================================== */
 
-thead a:hover {
-    color: #e2e6ea;
-    text-decoration: underline;
-}
-
-/* Global Theme */
+/* Base font and background for all pages */
 body {
     background-color: #f4f4f4;
     font-family: 'Segoe UI', sans-serif;
 }
 
+/* Headings styling (Duke blue by default) */
 h1, h2 {
-    color: #012169;
+    color: #012169;  /* Duke primary color */
     font-weight: 600;
 }
 
-/* Table Styling */
+/* ==========================================================================
+   TABLE STYLES
+   ========================================================================== */
+
+/* Dark table header with Duke branding */
 thead.table-dark {
     background-color: #012169 !important;
 }
 
-/* Buttons */
+/* Table links (sortable headers, etc.) */
+thead a {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+thead a:hover {
+    text-decoration: underline;
+    color: #e0e0e0;
+}
+
+/* ==========================================================================
+   BUTTON STYLES
+   ========================================================================== */
+
+/* Primary button (Duke blue) */
 .btn-primary {
     background-color: #012169;
     border-color: #012169;
@@ -51,6 +49,7 @@ thead.table-dark {
     border-color: #0b2a6b;
 }
 
+/* Success button (modified Duke blue) */
 .btn-success {
     background-color: #00539B;
     border-color: #00539B;
@@ -61,6 +60,7 @@ thead.table-dark {
     border-color: #004080;
 }
 
+/* Warning button (standard yellow) */
 .btn-warning {
     background-color: #ffc107;
     border-color: #ffc107;
@@ -72,13 +72,21 @@ thead.table-dark {
     border-color: #d39e00;
 }
 
-/* Modal headers */
+/* ==========================================================================
+   MODAL STYLES
+   ========================================================================== */
+
+/* Modal header with Duke branding */
 .modal-header {
     background-color: #012169;
     color: white;
 }
 
-/* Message text colors */
+/* ==========================================================================
+   MESSAGES AND ALERTS
+   ========================================================================== */
+
+/* Flash message color coding */
 #message.text-success {
     color: #198754;
 }
@@ -90,10 +98,87 @@ thead.table-dark {
 #message.text-info {
     color: #0dcaf0;
 }
-.revoked-user-row {
-        color: #999 !important;
-        background-color: #f8f9fa !important;
-    }
-    .revoked-user-row td, .revoked-user-row th {
-        text-decoration: line-through;
-    }
+
+/* ==========================================================================
+   SIDEBAR STYLES
+   ========================================================================== */
+
+/* Layout and sidebar container */
+body {
+    margin: 0;
+    display: flex;
+}
+
+/* Fixed vertical sidebar */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    background-color: #012169;  /* Duke blue - change for rebranding */
+    color: white;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: fixed;
+}
+
+/* University or organization logo at top */
+.logo img {
+    max-width: 70%;
+    height: auto;
+    margin-bottom: 40px;
+}
+
+/* Sidebar navigation links */
+.nav-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item {
+    margin-bottom: 20px;
+}
+
+.nav-item a {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 1.15rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.nav-item a.active,
+.nav-item a:hover {
+    background-color: #222;
+    color: white;
+}
+
+/* Log out button at the bottom */
+.logout-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s ease;
+    margin-bottom: 10px;
+}
+
+.logout-btn:hover {
+    background-color: #5a6268;
+}
+
+/* Main content area (shifted right to allow for sidebar) */
+.main-content {
+    margin-left: 260px;
+    padding: 30px;
+    width: 100%;
+}
