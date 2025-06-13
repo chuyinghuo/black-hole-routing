@@ -118,9 +118,9 @@
  
     <div class="d-flex justify-content-between align-items-end mb-3">
         <div>
-            <label  id="searchField" for="searchField" class="form-label">Search by IP Address , Comment , or Username</label>
+            <label  id="searchField" for="searchField" class="form-label">Search</label>
             <div class="d-flex">
-                <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP address , Comment , or Username"
+                <input type="text" class="form-control w-auto me-2" id="searchIP" placeholder="Enter IP/User/Comment"
                     onkeypress="if(event.key === 'Enter'){ event.preventDefault(); searchIP(); }" />
                 <button class="btn btn-secondary" onclick="searchIP()">Search</button>
             </div>
@@ -317,6 +317,10 @@ async function searchIP() {
         const ip = document.getElementById('ip_address').value;
         const comment = document.getElementById('comment').value;
         const duration = document.getElementById('duration').value;
+        if (parseInt(duration) < 0) {
+            alert("Duration must be a positive number.");
+            return;
+            }
  
         const response = await fetch(API_PREFIX, {
             method: 'POST',
@@ -339,11 +343,16 @@ async function searchIP() {
  
     document.getElementById('deleteSelected').addEventListener('click', async () => {
         const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
+        if (!ids.length) return;
+
+        const confirmed = confirm("Are you sure you want to delete the selected entries?");
+        if (!confirmed) return;
+
         for (let id of ids) {
             await fetch(`${API_PREFIX}/${id}`, { method: 'DELETE' });
         }
-        fetchSafelist();
-    });
+    fetchSafelist();
+});
  
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -378,6 +387,8 @@ async function searchIP() {
  
     document.getElementById('updateForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (!confirm("Are you sure you want to update this IP entry?")) return;
         const id = document.getElementById('updateId').value;
         const ip = document.getElementById('updateIP').value;
         const comment = document.getElementById('updateComment').value;
