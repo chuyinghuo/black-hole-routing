@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_cors import CORS
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,10 +20,15 @@ load_dotenv(dotenv_path=BASE_DIR / '.env')
 # Import db AFTER sys.path and dotenv setup
 from init_db import db
 
-TEMPLATE_DIR = BASE_DIR / 'templates'
+TEMPLATE_DIR = BASE_DIR / 'frontend' / 'templates'
+STATIC_DIR = BASE_DIR / 'frontend' / 'static'
 
 def create_app():
-    app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
+    app = Flask(
+    __name__,
+    static_folder=str(STATIC_DIR),
+    template_folder=str(TEMPLATE_DIR)
+)
     CORS(app)
 
     # PostgreSQL-only configuration
@@ -36,8 +41,6 @@ def create_app():
 
     # Initialize the db with the app
     db.init_app(app)
-
-
 
     # Cleanup job function needs app context:
     def delete_expired_entries():
@@ -62,14 +65,15 @@ def create_app():
     from api.users.routes import users_bp
     from api.dashboard.routes import dashboard_bp
 
-
-
     # Register blueprints
     app.register_blueprint(blocklist_bp, url_prefix="/blocklist")
     app.register_blueprint(safelist_bp, url_prefix="/safelist")
     app.register_blueprint(users_bp, url_prefix="/users")
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
+    @app.route("/")
+    def root():
+        return redirect(url_for('dashboard.root'))
 
     return app
 
