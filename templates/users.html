@@ -9,95 +9,77 @@
       color: white;
       text-decoration: none;
     }
-
     thead a:hover {
       text-decoration: underline;
       color: #f8f9fa;
     }
-
     .revoked-user-row {
         color: #999 !important;
         background-color: #f8f9fa !important;
     }
-
     .revoked-user-row td, .revoked-user-row th {
         text-decoration: line-through;
     }
-
   
   /* Global Theme */
   body {
     background-color: #f4f4f4;
     font-family: 'Segoe UI', sans-serif;
   }
-
   h1, h2 {
     color: #012169;
     font-weight: 600;
   }
-
   /* Table Styling */
   thead.table-dark {
     background-color: #012169 !important;
   }
-
   thead a {
     color: #ffffff;
     text-decoration: none;
   }
-
   thead a:hover {
     text-decoration: underline;
     color: #e0e0e0;
   }
-
   /* Buttons */
   .btn-primary {
     background-color: #012169;
     border-color: #012169;
   }
-
   .btn-primary:hover {
     background-color: #0b2a6b;
     border-color: #0b2a6b;
   }
-
   .btn-success {
     background-color: #00539B;
     border-color: #00539B;
   }
-
   .btn-success:hover {
     background-color: #004080;
     border-color: #004080;
   }
-
   .btn-warning {
     background-color: #ffc107;
     border-color: #ffc107;
     color: black;
   }
-
   .btn-warning:hover {
     background-color: #e0a800;
     border-color: #d39e00;
   }
-
   /* Modal headers */
   .modal-header {
     background-color: #012169;
     color: white;
   }
-
   /* Message text */
   #message.text-success {
     color: #198754;
   }
-
   #message.text-danger {
     color: #dc3545;
   }
-
   #message.text-info {
     color: #0dcaf0;
   }
@@ -105,10 +87,8 @@
 </head>
 <body class="bg-light">
 {% include 'sidebar.html' %}
-
 <div class="container mt-5">
   <h1 class="mb-4">User Management</h1>
-
   <!-- Search, Filter, Add User Row -->
   <div class="d-flex justify-content-between align-items-end mb-3">
     <div class="d-flex align-items-end">
@@ -133,9 +113,7 @@
       <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">Add User</button>
     </div>
   </div>
-
   <p id="message" class="fw-bold"></p>
-
   <h2 id="userListTitle">All Users</h2>
   <div class="table-responsive">
     <table class="table table-bordered table-striped align-middle" id="usersTable">
@@ -153,7 +131,6 @@
     </table>
   </div>
 </div>
-
 <!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -186,7 +163,6 @@
     </form>
   </div>
 </div>
-
 <!-- Update Modal -->
 <div class="modal fade" id="updateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -197,7 +173,7 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="updateId" />
-        
+        <input type="hidden" id="updateNetId" />
         <div class="mb-3">
           <label for="updateToken" class="form-label">Token</label>
           <input type="text" class="form-control" id="updateToken" required />
@@ -217,34 +193,65 @@
     </form>
   </div>
 </div>
-
 <script>
 const API_PREFIX = "/users";
 const form = document.getElementById("userForm");
 const messageEl = document.getElementById("message");
 const usersTableBody = document.querySelector("#usersTable tbody");
-
 let currentSortField = 'id';
 let currentSortOrder = 'asc';
 
+// Add User Form submission
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const net_id = form.net_id.value.trim();
   const token = form.token.value.trim();
   const role = form.role.value;
-
   if (!net_id || !token || token.length < 32) {
     showMessage("Fill all fields. Token must be at least 32 characters.", "danger");
     return;
   }
-
   const res = await fetch(`${API_PREFIX}/add-user`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ net_id, token, role })
   });
   const data = await res.json();
-  res.ok ? (showMessage("User added.", "success"), form.reset(), bootstrap.Modal.getInstance(document.getElementById("addUserModal")).hide(), loadUsers()) : showMessage(data.error, "danger");
+  if (res.ok) {
+    showMessage("User added.", "success");
+    form.reset();
+    bootstrap.Modal.getInstance(document.getElementById("addUserModal")).hide();
+    loadUsers();
+  } else {
+    showMessage(data.error, "danger");
+  }
+});
+
+// Update Form submission with confirmation
+document.getElementById("updateForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!confirm("Are you sure you want to update this user?")) {
+    return; // Abort if user cancels
+  }
+  const id = document.getElementById("updateId").value;
+  const net_id = document.getElementById("updateNetId").value;
+  const role = document.getElementById("updateRole").value;
+  const token = document.getElementById("updateToken").value.trim();
+  if (!token || token.length < 32) {
+    showMessage("Token must be at least 32 characters.", "danger");
+    return;
+  }
+  const res = await fetch(`${API_PREFIX}/edit/user/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ net_id, role, token })
+  });
+  const result = await res.json();
+  showMessage(result.message || result.error, res.ok ? "success" : "danger");
+  if (res.ok) {
+    bootstrap.Modal.getInstance(document.getElementById("updateModal")).hide();
+    loadUsers();
+  }
 });
 
 function setSort(field) {
@@ -266,22 +273,18 @@ async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
   const title = document.getElementById("userListTitle");
   title.textContent = `All ${role ? capitalize(role) + 's' : 'Users'}`;
-
   const params = new URLSearchParams();
   if (role) params.append("role", role);
   if (search) params.append("search", search);
   params.append("sort", currentSortField);
   params.append("order", currentSortOrder);
-
   const res = await fetch(`${API_PREFIX}/users?${params.toString()}`);
   const data = await res.json();
   usersTableBody.innerHTML = "";
-
   document.querySelectorAll("thead span").forEach(el => el.textContent = "");
   const arrow = currentSortOrder === "asc" ? "↑" : "↓";
   const indicator = document.getElementById(`sort-${currentSortField}`);
   if (indicator) indicator.textContent = arrow;
-
   data.users.forEach(user => {
     const row = document.createElement("tr");
     if (!user.active) row.classList.add("revoked-user-row");
@@ -306,32 +309,14 @@ async function loadUsers() {
 
 function showUpdateModal(id, net_id, role, token) {
   document.getElementById("updateId").value = id;
+  document.getElementById("updateNetId").value = net_id;
   document.getElementById("updateRole").value = role;
   document.getElementById("updateToken").value = token;
   new bootstrap.Modal(document.getElementById("updateModal")).show();
 }
 
-document.getElementById("updateForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const id = document.getElementById("updateId").value;
-  const role = document.getElementById("updateRole").value;
-  const token = document.getElementById("updateToken").value.trim();
-
-  const res = await fetch(`${API_PREFIX}/edit/user/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ net_id, role, token })
-  });
-  const result = await res.json();
-  showMessage(result.message || result.error, res.ok ? "success" : "danger");
-
-  bootstrap.Modal.getInstance(document.getElementById("updateModal")).hide();
-  loadUsers();
-});
-
 async function deleteUser(id) {
   if (!confirm("Are you sure you want to delete this user?")) return;
-
   const res = await fetch(`${API_PREFIX}/remove-user/${id}`, {
     method: "DELETE"
   });

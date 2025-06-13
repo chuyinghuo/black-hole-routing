@@ -67,7 +67,7 @@ def home():
                 db.session.add(history_entry)
                 db.session.commit()
 
-                return jsonify({'message': 'IP already existed, updated block count and time.'}), 200
+            return jsonify({'message': 'IP already existed, updated block count and time.'}), 200
 
             # Check if IP exists in Safelist
             if Safelist.query.filter_by(ip_address=ip_address).first():
