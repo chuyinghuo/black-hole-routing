@@ -241,7 +241,7 @@ form.addEventListener("submit", async (e) => {
   const res = await fetch(`${API_PREFIX}/add-user`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, role })
+    body: JSON.stringify({ net_id, token, role })
   });
   const data = await res.json();
   res.ok ? (showMessage("User added.", "success"), form.reset(), bootstrap.Modal.getInstance(document.getElementById("addUserModal")).hide(), loadUsers()) : showMessage(data.error, "danger");
