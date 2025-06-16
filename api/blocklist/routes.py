@@ -6,7 +6,7 @@ import os
 from io import StringIO
 import csv
 from init_db import db
-from models import Blocklist, User, Safelist ,BlockHistory
+from models import Blocklist, User, Safelist, BlockHistory
 from sqlalchemy import cast, String, asc, desc, or_
 
 # Add project root to sys.path for module access
@@ -14,13 +14,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 
+
 @blocklist_bp.route("/", methods=["GET", "POST"])
 def home():
     try:
         if request.method == "POST":
             data = request.get_json() or request.form
 
-            # Parse time fields
             time_added_str = data.get("time_added")
             duration_input = data.get("duration")
             time_added = datetime.strptime(time_added_str, "%Y-%m-%dT%H:%M") if time_added_str else datetime.utcnow()
@@ -48,7 +48,11 @@ def home():
             except ValueError:
                 return jsonify({'error': 'Invalid IP address or subnet'}), 400
 
-            # Check if IP exists in Blocklist
+            # Check if IP exists in Safelist
+            if Safelist.query.filter_by(ip_address=ip_address).first():
+                return jsonify({'error': 'IP already exists in safelist, delete it from safelist before adding to blocklist'}), 400
+
+            # Check if IP already exists in Blocklist
             existing_entry = Blocklist.query.filter_by(ip_address=ip_address).first()
             if existing_entry:
                 existing_entry.blocks_count += 1
@@ -66,14 +70,9 @@ def home():
                 )
                 db.session.add(history_entry)
                 db.session.commit()
+                return jsonify({'message': 'IP already existed, updated block count and time.'}), 200
 
-            return jsonify({'message': 'IP already existed, updated block count and time.'}), 200
-
-            # Check if IP exists in Safelist
-            if Safelist.query.filter_by(ip_address=ip_address).first():
-                return jsonify({'error': 'IP already exists in safelist, delete it from safelist before adding to blocklist'}), 400
-
-            # Get created_by from user id
+            # Otherwise, add new blocklist entry
             created_by = None
             if created_by_input:
                 try:
@@ -84,10 +83,9 @@ def home():
                 except ValueError:
                     pass
 
-            # Insert new Blocklist entry
             ip_entry = Blocklist(
                 ip_address=ip_address,
-                blocks_count=1,
+                blocks_count=blocks_count,
                 added_at=time_added,
                 expires_at=time_unblocked,
                 duration=duration,
@@ -135,8 +133,10 @@ def home():
     except Exception as e:
         print(f"Error fetching IPs: {e}")
         ips = []
+
     message = request.args.get("message")
     return render_template("blocklist.html", ips=ips, message=message)
+
 
 @blocklist_bp.route("/search", methods=["GET"])
 def search_ip():
@@ -199,6 +199,7 @@ def update():
         print(f"Error updating IP: {e}")
         db.session.rollback()
         return redirect("/blocklist/?message=Error+updating+IP")
+
 
 @blocklist_bp.route("/delete", methods=["POST"])
 def delete():

@@ -175,11 +175,13 @@
       });
 
       if (response.ok) {
-        const modal = bootstrap.Modal.getInstance(document.getElementById("addIPModal"));
-        modal.hide();
-        form.reset();
-        window.location.reload(); // Refresh to show new entry
-      } else {
+          const result = await response.json();
+          const modal = bootstrap.Modal.getInstance(document.getElementById("addIPModal"));
+          modal.hide();
+          form.reset();
+          window.location.href = "/blocklist/?message=" + encodeURIComponent(result.message || "IP added successfully");
+        }
+ else {
         const result = await response.json();
         alert("Failed to add IP: " + (result.error || "Unknown error"));
       }
