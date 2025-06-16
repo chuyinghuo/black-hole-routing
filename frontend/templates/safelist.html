@@ -5,6 +5,7 @@
     <title>Safelist Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/ip-address@7.0.5/dist/ip-address.min.js"></script>
 </head>
 <body class="bg-light">
 {% include 'sidebar.html' %}
@@ -74,7 +75,7 @@
         <div class="modal-body">
           <div class="mb-3">
             <label for="ip_address" class="form-label">IP Address</label>
-            <input type="text" class="form-control" id="ip_address" placeholder="e.g. 192.168.1.1" required />
+            <input type="text" class="form-control" id="ip_address" placeholder="e.g. 192.168.1.1 or 192.168.1.0/24" required />
           </div>
           <div class="mb-3">
             <label for="comment" class="form-label">Comment</label>
@@ -179,7 +180,75 @@ async function searchIP() {
         document.getElementById("message").textContent = "An error occurred while searching.";
     }
 }
- 
+
+    // Basic IP validation function
+    function isValidIP(ip) {
+        // IPv4 validation
+        const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+        if (ipv4Regex.test(ip)) {
+            const parts = ip.split('.');
+            return parts.every(part => {
+                const num = parseInt(part, 10);
+                return num >= 0 && num <= 255;
+            });
+        }
+        
+        // IPv6 validation (basic)
+        const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
+        if (ipv6Regex.test(ip)) {
+            return true;
+        }
+        
+        // IPv6 compressed format (basic check)
+        if (ip.includes('::')) {
+            const parts = ip.split('::');
+            if (parts.length === 2) {
+                return true; // Basic validation for compressed IPv6
+            }
+        }
+        
+        return false;
+    }
+
+    function countIPsSimple(cidr) {
+        if (typeof cidr !== 'string' || cidr.trim().length === 0) return null;
+
+        cidr = cidr.trim();
+
+        // If no '/', treat input as single IP
+        if (!cidr.includes('/')) {
+            // Validate that it's actually a valid IP
+            if (isValidIP(cidr)) {
+                return 1;
+            } else {
+                return null; // Invalid IP format
+            }
+        }
+
+        // Now parse normal IP/prefix notation
+        const parts = cidr.split('/');
+        if (parts.length !== 2) return null;
+
+        const [ip, prefixStr] = parts;
+        const prefix = Number(prefixStr);
+        if (isNaN(prefix)) return null;
+
+        // Validate the IP part
+        if (!isValidIP(ip)) return null;
+
+        if (ip.includes('.')) { // IPv4
+            if (prefix < 0 || prefix > 32) return null;
+            return Math.pow(2, 32 - prefix);
+        } else if (ip.includes(':')) { // IPv6
+            if (prefix < 0 || prefix > 128) return null;
+            return BigInt(2) ** BigInt(128 - prefix);
+        }
+
+        return null;
+    }
+    
+
+
     function renderSafelist(data) {
         const tableBody = document.querySelector('#ipTable tbody');
         tableBody.innerHTML = '';
@@ -227,25 +296,51 @@ async function searchIP() {
  
     document.getElementById('ipForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const ip = document.getElementById('ip_address').value;
+
+        const ipInput = document.getElementById('ip_address').value.trim();
         const comment = document.getElementById('comment').value;
-        const duration = document.getElementById('duration').value;
-        if (parseInt(duration) < 0) {
+        const durationStr = document.getElementById('duration').value;
+        const duration = Number(durationStr);
+
+        if (isNaN(duration) || duration < 1) {
             alert("Duration must be a positive number.");
             return;
-            }
- 
-        const response = await fetch(API_PREFIX, {
+        }
+
+        const ipCount = countIPsSimple(ipInput);
+        if (ipCount === null) {
+            alert("Invalid IP/Subnet format. Please enter a valid IPv4 address (e.g., 192.168.1.1), IPv6 address, or CIDR notation (e.g., 192.168.1.0/24).");
+            return;
+        }
+
+        const threshold = 128;
+        const countBigInt = typeof ipCount === 'number' ? ipCount : Number(ipCount);
+
+        if (countBigInt > threshold) {
+            const confirmed = confirm(`This will add ${countBigInt.toString()} IP addresses to the safelist. Are you sure you want to continue?`);
+            if (!confirmed) return;
+        }
+
+        try {
+            const response = await fetch(API_PREFIX, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip_address: ip, comment, created_by: 1, duration })
-        });
- 
-        const result = await response.json();
-        document.getElementById('message').textContent = result.message || result.error || '';
-        fetchSafelist();
-        e.target.reset();
-        bootstrap.Modal.getInstance(document.getElementById('addIpModal')).hide();
+            body: JSON.stringify({ ip_address: ipInput, comment, created_by: 1, duration })
+            });
+
+            if (!response.ok) {
+            const error = await response.text();
+            throw new Error(error || 'Server error');
+            }
+
+            const result = await response.json();
+            document.getElementById('message').textContent = result.message || result.error || '';
+            fetchSafelist();
+            e.target.reset();
+            bootstrap.Modal.getInstance(document.getElementById('addIpModal')).hide();
+        } catch (err) {
+            alert(`Failed to add IP: ${err.message}`);
+        }
     });
  
     document.getElementById('selectAll').addEventListener('change', (e) => {

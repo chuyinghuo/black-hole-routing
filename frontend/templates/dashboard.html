@@ -1,234 +1,424 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .stat-card {
+      border-left: 4px solid;
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+    .stat-card.primary { border-left-color: #0d6efd; }
+    .stat-card.success { border-left-color: #198754; }
+    .stat-card.warning { border-left-color: #ffc107; }
+    .stat-card.danger { border-left-color: #dc3545; }
+    .chart-container { height: 300px; margin-bottom: 1rem; }
+
+    body { background-color: #f4f4f4; font-family: 'Segoe UI', sans-serif; }
+    h1, h2 { color: #012169; font-weight: 600; }
+    .btn-primary { background-color: #012169; border-color: #012169; }
+    .btn-primary:hover { background-color: #0b2a6b; border-color: #0b2a6b; }
+    .btn-success { background-color: #00539B; border-color: #00539B; }
+    .btn-success:hover { background-color: #004080; border-color: #004080; }
+    .modal-header { background-color: #012169; color: white; }
+  </style>
 </head>
 <body class="bg-light">
 {% include 'sidebar.html' %}
 
-    <div class="container-fluid px-4 py-5">
-        <h1 class="mb-4">Black Hole Router</h1>
-        <h2 class="mb-4">Welcome Paulina!</h2>
+<div class="container-fluid px-4 py-5">
+  <h1 class="mb-4">Black Hole Router</h1>
+  <h2 class="mb-4">Welcome Paulina!</h2>
 
-        
-        <!-- Stats Row -->
-        <div class="row g-4 mb-4">
-            <div class="col-xl-3 col-md-6">
-                <div class="card stat-card primary shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Total Blocked IPs</h5>
-                        <h2 class="card-text" id="totalBlocked">0</h2>
-                        <p class="mb-0 text-muted">Active blocks</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card stat-card success shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Total Safelisted IPs</h5>
-                        <h2 class="card-text" id="totalSafe">0</h2>
-                        <p class="mb-0 text-muted">Active safelist entries</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card stat-card warning shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Average Block Duration</h5>
-                        <h2 class="card-text" id="avgDuration">0h</h2>
-                        <p class="mb-0 text-muted">Per IP</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card stat-card danger shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Expiring Soon</h5>
-                        <h2 class="card-text" id="expiringSoon">0</h2>
-                        <p class="mb-0 text-muted">Within 24 hours</p>
-                    </div>
-                </div>
-            </div>
+  <!-- Stats Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+      <div class="card stat-card primary shadow-sm" data-bs-toggle="modal" data-bs-target="#filterStatsModal" data-type="blocklist">
+            <div class="card-body">
+          <h5 class="card-title text-muted">Total Blocked IPs</h5>
+          <h2 class="card-text" id="totalBlocked">0</h2>
+          <p class="mb-0 text-muted">Active blocks</p>
         </div>
-
-        <!-- Charts Row -->
-        <div class="row g-4">
-            <div class="col-xl-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">Blocks by Creator</h5>
-                        <div class="chart-container">
-                            <canvas id="creatorChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">Timeline of Actions</h5>
-                        <div class="chart-container">
-                            <canvas id="timelineChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">IP Type Distribution</h5>
-                        <div class="chart-container">
-                            <canvas id="ipTypeChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">Recent Activity</h5>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Action</th>
-                                        <th>IP</th>
-                                        <th>User</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="recentActivity">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+    <div class="col-xl-3 col-md-6">
+     <div class="card stat-card success shadow-sm" data-bs-toggle="modal" data-bs-target="#filterStatsModal" data-type="safelist">
+            <div class="card-body">
+          <h5 class="card-title text-muted">Total Safelisted IPs</h5>
+          <h2 class="card-text" id="totalSafe">0</h2>
+          <p class="mb-0 text-muted">Active safelist entries</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card stat-card warning shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title text-muted">Peak Activity Hour</h5>
+          <h2 class="card-text" id="peakHour">N/A</h2>
+          <p class="mb-0 text-muted">This week</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card stat-card danger shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title text-muted">Peak Activity Day</h5>
+          <h2 class="card-text" id="peakDay">N/A</h2>
+          <p class="mb-0 text-muted">This month</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        // Fetch and update dashboard data
-        async function updateDashboard() {
-            try {
-                console.log('Fetching dashboard data...');
-                const response = await fetch('/dashboard/data');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('Received data:', data);
-                
-                // Update stats
-                document.getElementById('totalBlocked').textContent = data.stats.total_blocked;
-                document.getElementById('totalSafe').textContent = data.stats.total_safelist;
-                document.getElementById('avgDuration').textContent = `${data.stats.avg_duration}h`;
-                document.getElementById('expiringSoon').textContent = data.stats.expiring_soon;
+  <!-- Charts Row -->
+  <div class="row g-4">
+    <div class="col-xl-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Blocks by Creator</h5>
+          <div class="chart-container"><canvas id="creatorChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Timeline of Actions</h5>
+          <div class="chart-container"><canvas id="timelineChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">IP Type Distribution</h5>
+          <div class="chart-container"><canvas id="ipTypeChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Recent Activity</h5>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr><th>Time</th><th>Action</th><th>IP</th><th>User</th></tr>
+              </thead>
+              <tbody id="recentActivity"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-                // Blocks by Creator Chart
-                new Chart(document.getElementById('creatorChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(data.blocks_by_creator),
-                        datasets: [{
-                            label: 'Blocks Created',
-                            data: Object.values(data.blocks_by_creator),
-                            backgroundColor: '#012169'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false
-                    }
-                });
+<!-- Filter Modal -->
+<div class="modal fade" id="filterStatsModal" tabindex="-1" aria-labelledby="filterStatsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="filterStatsForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="filterStatsModalLabel">Filter by Date</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
 
-                // Timeline Chart
-                const timelineDates = Object.keys(data.timeline_data).sort();
-                new Chart(document.getElementById('timelineChart'), {
-                    type: 'line',
-                    data: {
-                        labels: timelineDates,
-                        datasets: [{
-                            label: 'Blocks Over Time',
-                            data: timelineDates.map(date => data.timeline_data[date]),
-                            borderColor: '#012169',  // Duke Royal
-                            fill: false,
-                            tension: 0.3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: true }
-                        }
-                    }
-                });
+        <div class="modal-body">
+          <!-- Hidden field to store the stat type -->
+          <input type="hidden" id="currentStatType" value="">
+          
+          <!-- Quick Filter -->
+          <div class="mb-3">
+            <label for="quickFilter" class="form-label">Quick Filter</label>
+            <select class="form-select" id="quickFilter">
+              <option value="">Select...</option>
+              <option value="today">Today</option>
+              <option value="last7">Last 7 Days</option>
+              <option value="last30">Last 30 Days</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
 
+          <!-- Custom Date Range -->
+          <div class="mb-3">
+            <label class="form-label">Or Select Range</label>
+            <input type="date" class="form-control mb-2" id="fromDate" />
+            <input type="date" class="form-control" id="toDate" />
+          </div>
 
-                // IP Type Distribution Chart
-                new Chart(document.getElementById('ipTypeChart'), {
-                    type: 'pie',
-                    data: {
-                        labels: ['IPv4', 'IPv6'],
-                        datasets: [{
-                            data: [
-                                data.ip_distribution.ipv4,
-                                data.ip_distribution.ipv6
-                            ],
-                            backgroundColor: ['#012169', '#b5b5b5'] // Duke Blue and Gold
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    color: '#333'
-                                }
-                            }
-                        }
-                    }
-                });
+          <!-- Result Display -->
+          <div id="filterResult" class="mt-3"></div>
+        </div>
 
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="clearFilter">Clear Filter</button>
+          <button type="submit" class="btn btn-success">Apply Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-                // Recent Activity Table
-                const recentActivity = document.getElementById('recentActivity');
-                recentActivity.innerHTML = '';
-                data.recent_activity.forEach(entry => {
-                    const row = recentActivity.insertRow();
-                    const time = new Date(entry.added_at).toLocaleString();
-                    row.innerHTML = `
-                        <td>${time}</td>
-                        <td>Block</td>
-                        <td>${entry.ip_address}</td>
-                        <td>${entry.created_by}</td>
-                    `;
-                });
+<script>
+  let originalStats = {}; // Store original values for clearing filters
+  let currentStatType = ''; // Track which stat is being filtered
 
-            } catch (error) {
-                console.error('Error in updateDashboard:', error);
-            }
-        }
+  // Function to get dates based on quick filter selection
+  function getQuickFilterDates(quickFilter) {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    switch(quickFilter) {
+      case 'today':
+        return { from: today, to: today };
+      case 'last7':
+        const last7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return { from: last7.toISOString().split('T')[0], to: today };
+      case 'last30':
+        const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return { from: last30.toISOString().split('T')[0], to: today };
+      case 'month':
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { from: firstDay.toISOString().split('T')[0], to: today };
+      default:
+        return null;
+    }
+  }
 
-        // Ensure Chart.js is loaded before running
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof Chart === 'undefined') {
-                console.error('Chart.js not loaded!');
-                return;
-            }
-            console.log('Starting dashboard update...');
-            updateDashboard();
-        });
-    </script>
+  async function updateDashboard() {
+    try {
+      const response = await fetch('/dashboard/data');
+      const data = await response.json();
+
+      // Store original stats for clearing filters
+      originalStats = {
+        total_blocked: data.stats.total_blocked,
+        total_safelist: data.stats.total_safelist
+      };
+
+      document.getElementById('totalBlocked').textContent = data.stats.total_blocked;
+      document.getElementById('totalSafe').textContent = data.stats.total_safelist;
+      document.getElementById('peakHour').textContent = data.stats.peak_hour;
+      document.getElementById('peakDay').textContent = data.stats.peak_day;
+
+      new Chart(document.getElementById('creatorChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.blocks_by_creator),
+          datasets: [{ label: 'Blocks Created', data: Object.values(data.blocks_by_creator), backgroundColor: '#012169' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const timelineDates = Object.keys(data.timeline_data).sort();
+      new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+          labels: timelineDates,
+          datasets: [{
+            label: 'Blocks Over Time',
+            data: timelineDates.map(date => data.timeline_data[date]),
+            borderColor: '#012169',
+            fill: false, tension: 0.3
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      new Chart(document.getElementById('ipTypeChart'), {
+        type: 'pie',
+        data: {
+          labels: ['IPv4', 'IPv6'],
+          datasets: [{ data: [data.ip_distribution.ipv4, data.ip_distribution.ipv6], backgroundColor: ['#012169', '#b5b5b5'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const recentActivity = document.getElementById('recentActivity');
+      recentActivity.innerHTML = '';
+      data.recent_activity.forEach(entry => {
+        const row = recentActivity.insertRow();
+        const time = new Date(entry.added_at).toLocaleString();
+        row.innerHTML = `<td>${time}</td><td>Block</td><td>${entry.ip_address}</td><td>${entry.created_by}</td>`;
+      });
+    } catch (error) {
+      console.error('Error in updateDashboard:', error);
+    }
+  }
+
+  // Handle modal show event to capture which stat type was clicked
+  document.getElementById('filterStatsModal').addEventListener('show.bs.modal', function (event) {
+    const button = event.relatedTarget;
+    const type = button.getAttribute('data-type');
+    currentStatType = type;
+    document.getElementById('currentStatType').value = type;
+    
+    // Update modal title
+    const modalTitle = document.getElementById('filterStatsModalLabel');
+    modalTitle.textContent = type === 'blocklist' ? 'Filter Total Blocked IPs' : 'Filter Total Safelisted IPs';
+    
+    // Clear previous results
+    document.getElementById('filterResult').textContent = '';
+    
+    // Reset form to initial state
+    resetFormState();
+  });
+
+  // Function to reset form to initial state
+  function resetFormState() {
+    document.getElementById('quickFilter').value = '';
+    document.getElementById('fromDate').value = '';
+    document.getElementById('toDate').value = '';
+    
+    // Enable all inputs
+    document.getElementById('quickFilter').disabled = false;
+    document.getElementById('fromDate').disabled = false;
+    document.getElementById('toDate').disabled = false;
+    
+    // Remove any styling
+    document.getElementById('quickFilter').classList.remove('text-muted');
+    document.getElementById('fromDate').classList.remove('text-muted');
+    document.getElementById('toDate').classList.remove('text-muted');
+  }
+
+  // Function to disable/enable inputs
+  function toggleInputs(activeInput) {
+    const quickFilter = document.getElementById('quickFilter');
+    const fromDate = document.getElementById('fromDate');
+    const toDate = document.getElementById('toDate');
+    
+    if (activeInput === 'quick') {
+      // Disable date inputs
+      fromDate.disabled = true;
+      toDate.disabled = true;
+      fromDate.classList.add('text-muted');
+      toDate.classList.add('text-muted');
+      
+      // Enable quick filter
+      quickFilter.disabled = false;
+      quickFilter.classList.remove('text-muted');
+    } else if (activeInput === 'date') {
+      // Disable quick filter
+      quickFilter.disabled = true;
+      quickFilter.classList.add('text-muted');
+      
+      // Enable date inputs
+      fromDate.disabled = false;
+      toDate.disabled = false;
+      fromDate.classList.remove('text-muted');
+      toDate.classList.remove('text-muted');
+    } else {
+      // Enable all (reset state)
+      quickFilter.disabled = false;
+      fromDate.disabled = false;
+      toDate.disabled = false;
+      quickFilter.classList.remove('text-muted');
+      fromDate.classList.remove('text-muted');
+      toDate.classList.remove('text-muted');
+    }
+  }
+
+  // Handle quick filter changes
+  document.getElementById('quickFilter').addEventListener('change', function() {
+    const quickFilter = this.value;
+    if (quickFilter) {
+      const dates = getQuickFilterDates(quickFilter);
+      document.getElementById('fromDate').value = dates.from;
+      document.getElementById('toDate').value = dates.to;
+      
+      // Disable date inputs since quick filter is active
+      toggleInputs('quick');
+    } else {
+      // Re-enable all inputs when quick filter is cleared
+      toggleInputs('reset');
+    }
+  });
+
+  // Handle date input focus/changes
+  document.getElementById('fromDate').addEventListener('focus', function() {
+    if (document.getElementById('quickFilter').value) {
+      document.getElementById('quickFilter').value = '';
+    }
+    toggleInputs('date');
+  });
+
+  document.getElementById('toDate').addEventListener('focus', function() {
+    if (document.getElementById('quickFilter').value) {
+      document.getElementById('quickFilter').value = '';
+    }
+    toggleInputs('date');
+  });
+
+  document.getElementById('filterStatsForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const type = document.getElementById('currentStatType').value;
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+
+    if (!from || !to) {
+      alert('Please select both from and to dates');
+      return;
+    }
+
+    const resultBox = document.getElementById('filterResult');
+    resultBox.textContent = "Loading...";
+    resultBox.className = "text-info mt-2";
+
+    try {
+      const response = await fetch(`/dashboard/api/filter_stats?type=${type}&from=${from}&to=${to}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        // Update the corresponding stat card
+        const elementId = type === 'blocklist' ? 'totalBlocked' : 'totalSafe';
+        document.getElementById(elementId).textContent = data.count;
+        
+        // Close the modal after successful filter
+        const modal = bootstrap.Modal.getInstance(document.getElementById('filterStatsModal'));
+        modal.hide();
+      } else {
+        resultBox.textContent = data.error || "Failed to fetch data.";
+        resultBox.className = "text-danger fw-bold mt-2";
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      resultBox.textContent = "An error occurred.";
+      resultBox.className = "text-danger fw-bold mt-2";
+    }
+  });
+
+  // Handle clear filter button
+  document.getElementById('clearFilter').addEventListener('click', function() {
+    // Reset form fields
+    resetFormState();
+    document.getElementById('filterResult').textContent = '';
+    
+    // Reset stat cards to original values
+    document.getElementById('totalBlocked').textContent = originalStats.total_blocked || 0;
+    document.getElementById('totalSafe').textContent = originalStats.total_safelist || 0;
+    
+    // Close the modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterStatsModal'));
+    modal.hide();
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js not loaded!');
+      return;
+    }
+    updateDashboard();
+  });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
