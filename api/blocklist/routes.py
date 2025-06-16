@@ -8,6 +8,8 @@ import csv
 from init_db import db
 from models import Blocklist, User, Safelist, BlockHistory
 from sqlalchemy import cast, String, asc, desc, or_
+from ipaddress import ip_network
+from urllib.parse import quote_plus
 
 # Add project root to sys.path for module access
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -217,52 +219,48 @@ def delete():
 
 @blocklist_bp.route("/upload_csv", methods=["POST"])
 def upload_blocklist_csv():
+    from ipaddress import ip_network  # Ensure local import to override global if needed
+    from urllib.parse import quote_plus
+
     if "file" not in request.files:
-        return jsonify({'error': 'No file part'}), 400
+        return redirect("/blocklist/?message=" + quote_plus("No file uploaded"))
 
     file = request.files["file"]
     if file.filename == '' or not file.filename.endswith('.csv'):
-        return jsonify({'error': 'Invalid file'}), 400
+        return redirect("/blocklist/?message=" + quote_plus("Invalid file format"))
 
-    stream = StringIO(file.stream.read().decode("utf-8"))
-    csv_input = csv.reader(stream)
+    try:
+        stream = StringIO(file.stream.read().decode("utf-8"))
+        csv_input = csv.DictReader(stream)
+    except Exception as e:
+        return redirect("/blocklist/?message=" + quote_plus(f"CSV parse error: {str(e)}"))
 
     added = 0
     errors = []
 
-    for row_num, row in enumerate(csv_input, start=1):
-        if not row:
-            continue
-
-        ip_address = row[0].strip()
-        comment = row[1].strip() if len(row) > 1 else ""
-        duration_input = row[2].strip() if len(row) > 2 else "24"
-        blocks_count_input = row[3].strip() if len(row) > 3 else "1"
-
+    for row_num, row in enumerate(csv_input, start=2):
+        raw_ip = row.get("ip_address", "").strip()
         try:
-            ipaddress.ip_network(ip_address, strict=False)
+            ip_address = str(ip_network(raw_ip, strict=False))
         except ValueError:
-            errors.append(f"Row {row_num}: Invalid IP '{ip_address}'")
+            errors.append(f"Row {row_num}: Invalid IP or subnet '{raw_ip}'")
             continue
+
+        comment = row.get("comment", "").strip()
+        duration_input = row.get("duration", "24").strip()
 
         if Blocklist.query.filter_by(ip_address=ip_address).first():
             errors.append(f"Row {row_num}: IP '{ip_address}' already exists in blocklist")
             continue
 
         if Safelist.query.filter_by(ip_address=ip_address).first():
-            errors.append(f"Row {row_num}: IP '{ip_address}' already exists in safelist")
+            errors.append(f"Row {row_num}: IP '{ip_address}' exists in safelist")
             continue
 
         try:
             duration_hours = int(duration_input)
         except (ValueError, TypeError):
             errors.append(f"Row {row_num}: Invalid duration '{duration_input}'")
-            continue
-
-        try:
-            blocks_count = int(blocks_count_input)
-        except (ValueError, TypeError):
-            errors.append(f"Row {row_num}: Invalid blocks_count '{blocks_count_input}'")
             continue
 
         now = datetime.now(timezone.utc)
@@ -275,18 +273,25 @@ def upload_blocklist_csv():
             added_at=now,
             expires_at=expires_at,
             duration=duration,
-            blocks_count=blocks_count
+            blocks_count=1,
+            created_by=None
         )
 
-        db.session.add(entry)
-        added += 1
+        try:
+            db.session.add(entry)
+            added += 1
+        except Exception as e:
+            db.session.rollback()
+            errors.append(f"Row {row_num}: DB error → {str(e)}")
 
     db.session.commit()
-    return jsonify({
-        'message': f'{added} IP(s) added to blocklist',
-        'errors': errors
-    })
 
+    message = f"{added} IP(s) added"
+    if errors:
+        detailed_errors = " | ".join(errors)
+        message += f" with {len(errors)} error(s): {detailed_errors}"
+
+    return redirect("/blocklist/?message=" + quote_plus(message))
 
 @blocklist_bp.route("/delete_bulk", methods=["POST"])
 def bulk_delete():

@@ -11,15 +11,22 @@
 
 <div class="container mt-5">
   {% if message %}
-  <div class="alert alert-success alert-dismissible fade show" role="alert">
-    {{ message.replace("+", " ") }}
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <strong>{{ message.split(':')[0] }}</strong><br />
+    {% if ':' in message %}
+      <ul class="mt-2 mb-0">
+        {% for err in message.split(':', 1)[1].split('|') %}
+          <li>{{ err.strip() }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 {% endif %}
   <h1 class="mb-3">Blocklist Manager</h1>
   <div class="mb-3">
     <button id="showFormBtn" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addIPModal">Add IP</button>
-    <form id="uploadForm" class="d-inline-block" enctype="multipart/form-data">
+  <form id="uploadForm" class="d-inline-block" method="POST" action="/blocklist/upload_csv" enctype="multipart/form-data">
       <input type="file" name="file" id="csvFile" accept=".csv" class="d-none" required onchange="document.getElementById('uploadForm').requestSubmit()" />
       <button type="button" class="btn btn-secondary" onclick="document.getElementById('csvFile').click()">Upload CSV</button>
     </form>
