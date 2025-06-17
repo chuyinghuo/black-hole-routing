@@ -36,10 +36,7 @@ def home():
             ip_address = data.get("ip_address")
             comment = data.get("comment") or ""
 
-            try:
-                blocks_count = int(data.get("blocks_count"))
-            except (ValueError, TypeError):
-                blocks_count = 1
+            blocks_count = 1 
 
             created_by_input = data.get("created_by")
 

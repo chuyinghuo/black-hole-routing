@@ -97,10 +97,6 @@
             <input type="text" name="ip_address" class="form-control" required />
           </div>
           <div class="mb-3">
-            <label class="form-label">Num of Blocks</label>
-            <input type="number" name="blocks_count" class="form-control" required />
-          </div>
-          <div class="mb-3">
             <label class="form-label">Duration (hours)</label>
             <input type="number" name="duration" class="form-control" required />
           </div>
@@ -133,11 +129,7 @@
         <input type="hidden" name="entry_id" id="edit_entry_id">
         <div class="mb-3">
           <label class="form-label">IP</label>
-          <input type="text" name="ip_address" id="edit_ip_address" class="form-control" required />
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Num of Blocks</label>
-          <input type="number" name="blocks_count" id="edit_blocks_count" class="form-control" required />
+          <input type="text" name="ip_address" id="edit_ip_address" class="form-control" readonly style="background-color: #e9ecef;" />
         </div>
         <div class="mb-3">
           <label class="form-label">Time Added</label>
@@ -205,14 +197,13 @@
   }
 
   function fillEditForm(id, ip, blocks, added, expires, comment, userId) {
-    document.getElementById('edit_entry_id').value = id;
-    document.getElementById('edit_ip_address').value = ip;
-    document.getElementById('edit_blocks_count').value = blocks;
-    document.getElementById('edit_time_added').value = formatToDateTimeLocal(added);
-    document.getElementById('edit_time_unblocked').value = formatToDateTimeLocal(expires);
-    document.getElementById('edit_comment').value = comment;
-    document.getElementById('edit_created_by').value = userId;
-  }
+  document.getElementById('edit_entry_id').value = id;
+  document.getElementById('edit_ip_address').value = ip;
+  document.getElementById('edit_time_added').value = formatToDateTimeLocal(added);
+  document.getElementById('edit_time_unblocked').value = formatToDateTimeLocal(expires);
+  document.getElementById('edit_comment').value = comment;
+  document.getElementById('edit_created_by').value = userId;
+}
 
   function updateDuration() {
     const start = document.getElementById('time_added').value;
