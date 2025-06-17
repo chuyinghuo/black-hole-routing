@@ -74,8 +74,7 @@
           <td>{{ ip.comment }}</td>
           <td>{{ ip.created_by if ip.created_by is not none else '—' }}</td>
           <td>{% if ip.duration %}{{ (ip.duration.total_seconds() // 3600)|int }} hr{% else %}—{% endif %}</td>
-          <td><button type="button" class="btn btn-sm btn-warning updateBtn" onclick="fillEditForm('{{ ip.id }}', '{{ ip.ip_address }}', '{{ ip.blocks_count }}', '{{ ip.added_at }}', '{{ ip.expires_at }}', '{{ ip.comment }}', '{{ ip.created_by or '' }}')" data-bs-toggle="modal" data-bs-target="#editModal">Update</button></td>
-        </tr>
+<td><button type="button" class="btn btn-sm btn-warning updateBtn" onclick="fillEditForm('{{ ip.id }}', '{{ ip.ip_address }}', '{{ ip.expires_at }}',  '{{ ip.comment }}')" data-bs-toggle="modal" data-bs-target="#editModal">Update</button></td>         </tr>
         {% endfor %}
       </tbody>
     </table>
@@ -95,10 +94,6 @@
           <div class="mb-3">
             <label class="form-label">IP (CIDR)</label>
             <input type="text" name="ip_address" class="form-control" required />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Num of Blocks</label>
-            <input type="number" name="blocks_count" class="form-control" required />
           </div>
           <div class="mb-3">
             <label class="form-label">Duration (hours)</label>
@@ -135,14 +130,7 @@
           <label class="form-label">IP (CIDR)</label>
           <input type="text" name="ip_address" id="edit_ip_address" class="form-control" required />
         </div>
-        <div class="mb-3">
-          <label class="form-label">Num of Blocks</label>
-          <input type="number" name="blocks_count" id="edit_blocks_count" class="form-control" required />
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Time Added</label>
-          <input type="datetime-local" name="time_added" id="edit_time_added" class="form-control" required />
-        </div>
+
         <div class="mb-3">
           <label class="form-label">Time Unblocked</label>
           <input type="datetime-local" name="time_unblocked" id="edit_time_unblocked" class="form-control" />
@@ -151,11 +139,6 @@
           <label class="form-label">Reason</label>
           <input type="text" name="comment" id="edit_comment" class="form-control" required />
         </div>
-        <div class="mb-3">
-          <label class="form-label">User ID (optional)</label>
-          <input type="text" name="created_by" id="edit_created_by" class="form-control" />
-        </div>
-      </div>
       <div class="modal-footer">
         <button type="submit" class="btn btn-primary">Save Changes</button>
       </div>
@@ -204,14 +187,11 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
-  function fillEditForm(id, ip, blocks, added, expires, comment, userId) {
+  function fillEditForm(id, ip, expires, comment, userId) {
     document.getElementById('edit_entry_id').value = id;
     document.getElementById('edit_ip_address').value = ip;
-    document.getElementById('edit_blocks_count').value = blocks;
-    document.getElementById('edit_time_added').value = formatToDateTimeLocal(added);
     document.getElementById('edit_time_unblocked').value = formatToDateTimeLocal(expires);
     document.getElementById('edit_comment').value = comment;
-    document.getElementById('edit_created_by').value = userId;
   }
 
   function updateDuration() {
