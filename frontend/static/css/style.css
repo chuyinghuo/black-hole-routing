@@ -182,3 +182,53 @@ thead a:hover {
     padding: 30px;
     width: 100%;
 }
+
+/* ==========================================================================
+   PAGINATION STYLES 
+   ========================================================================== */
+
+#pagination {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+#pagination .btn {
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 500;
+    min-width: 36px;
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+}
+
+#pagination .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-light);
+}
+
+#pagination .btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+#pagination .btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: transparent;
+}
+
+#pagination .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+}
+
+#pagination .btn.disabled,
+#pagination .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
