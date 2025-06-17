@@ -264,6 +264,62 @@ document.getElementById('deleteSelected').addEventListener('click', async () => 
     fetchSafelist();
 });
 
+// Handle Add IP form submission
+document.getElementById('ipForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        ip_address: document.getElementById('ip_address').value,
+        comment: document.getElementById('comment').value,
+        duration: parseInt(document.getElementById('duration').value)
+    };
+    
+    try {
+        const response = await fetch(API_PREFIX, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            document.getElementById('message').textContent = 'IP added successfully!';
+            document.getElementById('ipForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('addIpModal')).hide();
+            fetchSafelist(); // Refresh the table
+        } else {
+            const error = await response.text();
+            document.getElementById('errorList').textContent = `Error: ${error}`;
+        }
+    } catch (error) {
+        document.getElementById('errorList').textContent = `Error: ${error.message}`;
+    }
+});
+
+// Handle CSV upload
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('file', document.getElementById('csvFile').files[0]);
+    
+    try {
+        const response = await fetch(`${API_PREFIX}/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            document.getElementById('message').textContent = 'CSV uploaded successfully!';
+            fetchSafelist(); // Refresh the table
+        } else {
+            const error = await response.text();
+            document.getElementById('errorList').textContent = `Upload error: ${error}`;
+        }
+    } catch (error) {
+        document.getElementById('errorList').textContent = `Upload error: ${error.message}`;
+    }
+});
+
 fetchSafelist();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
