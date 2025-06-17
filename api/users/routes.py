@@ -48,6 +48,8 @@ def get_users():
         search_term = request.args.get('search', '').strip()
         sort_field = request.args.get('sort', 'id')
         sort_order = request.args.get('order', 'asc')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
 
         sort_options = {
             "id": User.id,
@@ -74,7 +76,8 @@ def get_users():
         if search_term:
             query = query.filter(User.net_id.ilike(f"%{search_term}%"))
 
-        users = query.order_by(sort_column).all()
+        total_users = query.count()
+        users = query.order_by(sort_column).offset((page - 1) * limit).limit(limit).all()
 
         data = [{
             "id": user.id,
@@ -84,7 +87,13 @@ def get_users():
             "token": user.token,
             "active": user.active
         } for user in users]
-        return jsonify({"users": data}), 200
+
+        return jsonify({
+            "users": data,
+            "total": total_users,
+            "page": page,
+            "pages": (total_users + limit - 1) // limit
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

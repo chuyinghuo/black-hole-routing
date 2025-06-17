@@ -126,295 +126,145 @@
     </div>
 </div>
  
- 
- 
 <script>
-    const API_PREFIX = "/safelist/api/safelist";
-    let currentSortField = 'id';
-    let currentSortOrder = 'asc';
- 
-    async function fetchSafelist() {
-        const params = new URLSearchParams({ sort: currentSortField, order: currentSortOrder });
-        const response = await fetch(`${API_PREFIX}?${params.toString()}`);
-        const data = await response.json();
-        renderSafelist(data);
-        applySortIndicators();
-    }
- 
- 
-    function setSort(field) {
-        if (currentSortField === field) {
-            currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
-        } else {
-            currentSortField = field;
-            currentSortOrder = 'asc';
-        }
-        fetchSafelist();
-    }
- 
-    function applySortIndicators() {
-        document.querySelectorAll("thead span").forEach(el => el.textContent = "");
-        const arrow = currentSortOrder === "asc" ? "↑" : "↓";
-        const indicator = document.getElementById(`sort-${currentSortField}`);
-        if (indicator) indicator.textContent = arrow;
-    }
- 
-async function searchIP() {
-    const field = document.getElementById("searchField").value;
-    const query = document.getElementById("searchIP").value.trim();
-    if (!query) {
-        fetchSafelist();
-        return;
-    }
- 
-    try {
-        // لاحظ أننا نرسل query فقط وليس اسم الحقل
-        const response = await fetch(`${API_PREFIX}/search?query=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        if (response.ok) {
-            renderSafelist(data);
-        } else {
-            document.getElementById("message").textContent = data.error || "Search failed.";
-        }
-    } catch (err) {
-        document.getElementById("message").textContent = "An error occurred while searching.";
-    }
+const API_PREFIX = "/safelist/api/safelist";
+let currentSortField = 'id';
+let currentSortOrder = 'asc';
+let currentPage = 1;
+const SAFELIST_PER_PAGE = 5;
+
+async function fetchSafelist() {
+    const params = new URLSearchParams({
+        sort: currentSortField,
+        order: currentSortOrder,
+        page: currentPage,
+        limit: SAFELIST_PER_PAGE
+    });
+    const response = await fetch(`${API_PREFIX}?${params.toString()}`);
+    const data = await response.json();
+    renderSafelist(data.entries);
+    applySortIndicators();
+    renderPagination(data.page, data.pages);
 }
 
-    // Basic IP validation function
-    function isValidIP(ip) {
-        // IPv4 validation
-        const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-        if (ipv4Regex.test(ip)) {
-            const parts = ip.split('.');
-            return parts.every(part => {
-                const num = parseInt(part, 10);
-                return num >= 0 && num <= 255;
-            });
-        }
-        
-        // IPv6 validation (basic)
-        const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
-        if (ipv6Regex.test(ip)) {
-            return true;
-        }
-        
-        // IPv6 compressed format (basic check)
-        if (ip.includes('::')) {
-            const parts = ip.split('::');
-            if (parts.length === 2) {
-                return true; // Basic validation for compressed IPv6
-            }
-        }
-        
-        return false;
+function setSort(field) {
+    if (currentSortField === field) {
+        currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortField = field;
+        currentSortOrder = 'asc';
     }
+    fetchSafelist();
+}
 
-    function countIPsSimple(cidr) {
-        if (typeof cidr !== 'string' || cidr.trim().length === 0) return null;
+function applySortIndicators() {
+    document.querySelectorAll("thead span").forEach(el => el.textContent = "");
+    const arrow = currentSortOrder === "asc" ? "↑" : "↓";
+    const indicator = document.getElementById(`sort-${currentSortField}`);
+    if (indicator) indicator.textContent = arrow;
+}
 
-        cidr = cidr.trim();
-
-        // If no '/', treat input as single IP
-        if (!cidr.includes('/')) {
-            // Validate that it's actually a valid IP
-            if (isValidIP(cidr)) {
-                return 1;
-            } else {
-                return null; // Invalid IP format
-            }
-        }
-
-        // Now parse normal IP/prefix notation
-        const parts = cidr.split('/');
-        if (parts.length !== 2) return null;
-
-        const [ip, prefixStr] = parts;
-        const prefix = Number(prefixStr);
-        if (isNaN(prefix)) return null;
-
-        // Validate the IP part
-        if (!isValidIP(ip)) return null;
-
-        if (ip.includes('.')) { // IPv4
-            if (prefix < 0 || prefix > 32) return null;
-            return Math.pow(2, 32 - prefix);
-        } else if (ip.includes(':')) { // IPv6
-            if (prefix < 0 || prefix > 128) return null;
-            return BigInt(2) ** BigInt(128 - prefix);
-        }
-
-        return null;
-    }
-    
-
-
-    function renderSafelist(data) {
-        const tableBody = document.querySelector('#ipTable tbody');
-        tableBody.innerHTML = '';
-        data.forEach(entry => {
-            const row = `
-                <tr>
-                    <td><input type="checkbox" class="rowCheckbox" data-id="${entry.id}" /></td>
-                    <td>${entry.id}</td>
-                    <td>${entry.ip_address}</td>
-                    <td>${entry.comment || ''}</td>
-                    <td>${entry.created_by || ''}</td>
-                    <td>${entry.added_at ? new Date(entry.added_at).toLocaleString() : ''}</td>
-                    <td>${entry.expires_at ? new Date(entry.expires_at).toLocaleString() : ''}</td>
-                    <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
-                    <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
-                </tr>`;
-            tableBody.innerHTML += row;
-        });
- 
-        updateDeleteButtonState();
-        document.querySelectorAll('.rowCheckbox').forEach(cb => {
-            cb.addEventListener('change', updateDeleteButtonState);
-        });
- 
-        document.querySelectorAll('.updateBtn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const id = e.target.dataset.id;
-                const row = e.target.closest('tr');
-                document.getElementById('updateId').value = id;
-                document.getElementById('updateIP').value = row.children[2].textContent.trim();
-                document.getElementById('updateComment').value = row.children[3].textContent.trim();
-                const rawDate = row.children[6].textContent.trim();
-                const dt = new Date(rawDate);
-                document.getElementById('updateEnding').value = isNaN(dt) ? '' : dt.toISOString().slice(0, 16);
-                const modal = new bootstrap.Modal(document.getElementById('updateModal'));
-                modal.show();
-            });
-        });
-    }
- 
-    function updateDeleteButtonState() {
-        const checkboxes = document.querySelectorAll('.rowCheckbox:checked');
-        document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
-    }
- 
-    document.getElementById('ipForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const ipInput = document.getElementById('ip_address').value.trim();
-        const comment = document.getElementById('comment').value;
-        const durationStr = document.getElementById('duration').value;
-        const duration = Number(durationStr);
-
-        if (isNaN(duration) || duration < 1) {
-            alert("Duration must be a positive number.");
-            return;
-        }
-
-        const ipCount = countIPsSimple(ipInput);
-        if (ipCount === null) {
-            alert("Invalid IP/Subnet format. Please enter a valid IPv4 address (e.g., 192.168.1.1), IPv6 address, or CIDR notation (e.g., 192.168.1.0/24).");
-            return;
-        }
-
-        const threshold = 128;
-        const countBigInt = typeof ipCount === 'number' ? ipCount : Number(ipCount);
-
-        if (countBigInt > threshold) {
-            const confirmed = confirm(`This will add ${countBigInt.toString()} IP addresses to the safelist. Are you sure you want to continue?`);
-            if (!confirmed) return;
-        }
-
-        try {
-            const response = await fetch(API_PREFIX, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip_address: ipInput, comment, created_by: 1, duration })
-            });
-
-            if (!response.ok) {
-            const error = await response.text();
-            throw new Error(error || 'Server error');
-            }
-
-            const result = await response.json();
-            document.getElementById('message').textContent = result.message || result.error || '';
-            fetchSafelist();
-            e.target.reset();
-            bootstrap.Modal.getInstance(document.getElementById('addIpModal')).hide();
-        } catch (err) {
-            alert(`Failed to add IP: ${err.message}`);
-        }
+function renderSafelist(data) {
+    const tableBody = document.querySelector('#ipTable tbody');
+    tableBody.innerHTML = '';
+    data.forEach(entry => {
+        const row = `
+            <tr>
+                <td><input type="checkbox" class="rowCheckbox" data-id="${entry.id}" /></td>
+                <td>${entry.id}</td>
+                <td>${entry.ip_address}</td>
+                <td>${entry.comment || ''}</td>
+                <td>${entry.created_by || ''}</td>
+                <td>${entry.added_at ? new Date(entry.added_at).toLocaleString() : ''}</td>
+                <td>${entry.expires_at ? new Date(entry.expires_at).toLocaleString() : ''}</td>
+                <td>${parseFloat(entry.duration).toFixed(2) || ''}</td>
+                <td><button class="btn btn-sm btn-warning updateBtn" data-id="${entry.id}">Update</button></td>
+            </tr>`;
+        tableBody.innerHTML += row;
     });
- 
-    document.getElementById('selectAll').addEventListener('change', (e) => {
-        const checked = e.target.checked;
-        document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = checked);
-        updateDeleteButtonState();
+
+    updateDeleteButtonState();
+
+    document.querySelectorAll('.rowCheckbox').forEach(cb => {
+        cb.addEventListener('change', updateDeleteButtonState);
     });
- 
-    document.getElementById('deleteSelected').addEventListener('click', async () => {
-        const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
-        if (!ids.length) return;
 
-        const confirmed = confirm("Are you sure you want to delete the selected entries?");
-        if (!confirmed) return;
+    document.querySelectorAll('.updateBtn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const id = e.target.dataset.id;
+            const row = e.target.closest('tr');
+            document.getElementById('updateId').value = id;
+            document.getElementById('updateIP').value = row.children[2].textContent.trim();
+            document.getElementById('updateComment').value = row.children[3].textContent.trim();
+            const rawDate = row.children[6].textContent.trim();
+            const dt = new Date(rawDate);
+            document.getElementById('updateEnding').value = isNaN(dt) ? '' : dt.toISOString().slice(0, 16);
+            const modal = new bootstrap.Modal(document.getElementById('updateModal'));
+            modal.show();
+        });
+    });
+}
 
-        for (let id of ids) {
-            await fetch(`${API_PREFIX}/${id}`, { method: 'DELETE' });
+function renderPagination(current, totalPages) {
+    let container = document.getElementById("pagination");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "pagination";
+        container.className = "text-center mt-3";
+        document.querySelector(".container").appendChild(container);
+    }
+    container.innerHTML = "";
+
+    if (totalPages <= 1) return;
+
+    const createBtn = (label, targetPage, disabled = false, active = false) => {
+        const btn = document.createElement("button");
+        btn.textContent = label;
+        btn.className = `btn btn-sm mx-1 ${active ? 'btn-primary' : 'btn-outline-primary'} ${disabled ? 'disabled' : ''}`;
+        btn.disabled = disabled;
+        if (!disabled) {
+            btn.addEventListener("click", () => {
+                currentPage = targetPage;
+                fetchSafelist();
+            });
         }
+        return btn;
+    };
+
+    container.appendChild(createBtn("« Prev", current - 1, current === 1));
+
+    for (let i = 1; i <= totalPages; i++) {
+        container.appendChild(createBtn(i, i, false, i === current));
+    }
+
+    container.appendChild(createBtn("Next »", current + 1, current === totalPages));
+}
+
+function updateDeleteButtonState() {
+    const checkboxes = document.querySelectorAll('.rowCheckbox:checked');
+    document.getElementById('deleteSelected').disabled = checkboxes.length === 0;
+}
+
+document.getElementById('selectAll').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = checked);
+    updateDeleteButtonState();
+});
+
+document.getElementById('deleteSelected').addEventListener('click', async () => {
+    const ids = [...document.querySelectorAll('.rowCheckbox:checked')].map(cb => cb.dataset.id);
+    if (!ids.length) return;
+
+    const confirmed = confirm("Are you sure you want to delete the selected entries?");
+    if (!confirmed) return;
+
+    for (let id of ids) {
+        await fetch(`${API_PREFIX}/${id}`, { method: 'DELETE' });
+    }
     fetchSafelist();
 });
- 
-    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fileInput = document.getElementById('csvFile');
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
- 
-        const response = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: formData });
-        const result = await response.json();
-        const messageEl = document.getElementById('message');
-        const errorListEl = document.getElementById('errorList');
- 
-        if (result.message) {
-            messageEl.textContent = result.message;
-            messageEl.className = "mb-4 text-success fw-bold";
-        } else if (result.error) {
-            messageEl.textContent = result.error;
-            messageEl.className = "mb-4 text-danger fw-bold";
-        } else {
-            messageEl.textContent = '';
-        }
- 
-        if (result.errors && result.errors.length > 0) {
-            errorListEl.innerHTML = '<ul>' + result.errors.map(err => `<li>${err}</li>`).join('') + '</ul>';
-        } else {
-            errorListEl.innerHTML = '';
-        }
- 
-        fetchSafelist();
-        fileInput.value = '';
-    });
- 
-    document.getElementById('updateForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
 
-        if (!confirm("Are you sure you want to update this IP entry?")) return;
-        const id = document.getElementById('updateId').value;
-        const ip = document.getElementById('updateIP').value;
-        const comment = document.getElementById('updateComment').value;
-        const expires = document.getElementById('updateEnding').value;
- 
-        const res = await fetch(`${API_PREFIX}/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip_address: ip, comment: comment, expires_at: expires })
-        });
- 
-        const result = await res.json();
-        document.getElementById('message').textContent = result.message || result.error || '';
-        bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
-        fetchSafelist();
-    });
- 
-    fetchSafelist();
+fetchSafelist();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

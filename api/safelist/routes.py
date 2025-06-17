@@ -17,7 +17,9 @@ safelist_bp = Blueprint('safelist', __name__)
 def get_safelist():
     sort_field = request.args.get('sort', 'id')
     sort_order = request.args.get('order', 'asc')
- 
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 10))
+
     valid_fields = {
         'id': Safelist.id,
         'ip_address': Safelist.ip_address,
@@ -27,26 +29,33 @@ def get_safelist():
         'expires_at': Safelist.expires_at,
         'duration': Safelist.duration
     }
- 
+
     sort_column = valid_fields.get(sort_field)
     if not sort_column:
         return jsonify({'error': f'Invalid sort field: {sort_field}'}), 400
- 
+
     direction = asc if sort_order == 'asc' else desc
-    entries = Safelist.query.order_by(direction(sort_column)).all()
- 
-    return jsonify([
-        {
-            'id': entry.id,
-            'ip_address': entry.ip_address,
-            'created_by': entry.created_by,
-            'added_at': entry.added_at.strftime('%m/%d/%y, %I:%M %p') if entry.added_at else None,
-            'expires_at': entry.expires_at.strftime('%m/%d/%y, %I:%M %p') if entry.expires_at else None,
-            'duration': round(entry.duration.total_seconds() / 3600, 2),  # in hours
-            'comment': entry.comment
-        }
-        for entry in entries
-    ])
+
+    query = Safelist.query.order_by(direction(sort_column))
+    total = query.count()
+    entries = query.offset((page - 1) * limit).limit(limit).all()
+
+    return jsonify({
+        'entries': [
+            {
+                'id': entry.id,
+                'ip_address': entry.ip_address,
+                'created_by': entry.created_by,
+                'added_at': entry.added_at.strftime('%m/%d/%y, %I:%M %p') if entry.added_at else None,
+                'expires_at': entry.expires_at.strftime('%m/%d/%y, %I:%M %p') if entry.expires_at else None,
+                'duration': round(entry.duration.total_seconds() / 3600, 2),
+                'comment': entry.comment
+            } for entry in entries
+        ],
+        'page': page,
+        'pages': (total + limit - 1) // limit,
+        'total': total
+    })
  
 @safelist_bp.route('/')
 def index():
