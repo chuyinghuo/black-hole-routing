@@ -96,7 +96,10 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="updateId" />
-        <input type="hidden" id="updateNetId" />
+        <div class="mb-3">
+          <label for="updateNetId" class="form-label">Net ID</label>
+          <input type="text" class="form-control" id="updateNetId" disabled />
+        </div>
         <div class="mb-3">
           <label for="updateToken" class="form-label">Token</label>
           <input type="text" class="form-control" id="updateToken" required />
