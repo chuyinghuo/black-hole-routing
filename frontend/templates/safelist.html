@@ -10,7 +10,9 @@
 <body class="bg-light">
 {% include 'sidebar.html' %}
 
-<div class="container mt-5">
+<div class="container-fluid mt-5">
+    <div class="row">
+    <div class="col-12">
     <h1 class="mb-3">Safelist Manager</h1>
 
     <div class="mb-3">
@@ -211,7 +213,7 @@ function renderPagination(current, totalPages) {
         container = document.createElement("div");
         container.id = "pagination";
         container.className = "text-center mt-3";
-        document.querySelector(".container").appendChild(container);
+        document.querySelector(".col-12").appendChild(container);
     }
     container.innerHTML = "";
 
