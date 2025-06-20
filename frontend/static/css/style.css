@@ -267,3 +267,68 @@ thead a:hover {
     height: 300px;
     margin-bottom: 1rem;
 }
+
+/* ==========================================================================
+   AUTH PAGE STYLES
+   ========================================================================== */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.split-screen {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+
+.left-panel,
+.right-panel {
+    width: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.left-panel {
+    background-color: #fff;
+    padding: 40px;
+    flex-direction: column;
+}
+
+.right-panel {
+    background-color: var(--primary-color);
+}
+
+.right-panel img {
+    max-width: 80%;
+    height: auto;
+}
+
+.form-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.form-control:focus {
+    box-shadow: none;
+    border-color: #0d6efd;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+#loginError {
+    color: #dc3545;
+    font-weight: 500;
+    margin-top: 1rem;
+}
