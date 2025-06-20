@@ -232,3 +232,38 @@ thead a:hover {
     cursor: not-allowed;
     pointer-events: none;
 }
+
+/* ==========================================================================
+   DASHBOARD CARD & CHART STYLES
+   ========================================================================== */
+
+.stat-card {
+    border-left: 4px solid;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-card.primary {
+    border-left-color: var(--primary-color);
+}
+
+.stat-card.success {
+    border-left-color: #198754;
+}
+
+.stat-card.warning {
+    border-left-color: var(--warning-color);
+}
+
+.stat-card.danger {
+    border-left-color: #dc3545;
+}
+
+.chart-container {
+    height: 300px;
+    margin-bottom: 1rem;
+}
