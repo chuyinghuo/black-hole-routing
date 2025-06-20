@@ -1,0 +1,56 @@
+.stat-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.stat-card.primary {
+  border-left: 4px solid var(--primary-color, #012169);
+}
+
+.stat-card.success {
+  border-left: 4px solid var(--accent-color, #00539B);
+}
+
+.stat-card.warning {
+  border-left: 4px solid var(--warning-color, #ffc107);
+}
+
+.stat-card.danger {
+  border-left: 4px solid #dc3545;
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+h1, h2 {
+  color: var(--primary-color, #012169);
+  font-weight: 600;
+}
+
+.modal-header {
+  background-color: var(--primary-color, #012169);
+  color: var(--text-light, #ffffff);
+}
+
+.card-title {
+  color: #6c757d;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.card-text {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 0.5rem;
+} 

@@ -1,0 +1,45 @@
+h1, h2 {
+  color: var(--primary-color, #012169);
+  font-weight: 600;
+}
+
+.table-dark {
+  background-color: var(--primary-color, #012169) !important;
+}
+
+.table-dark th a,
+.table-dark th button {
+  color: var(--text-light, #ffffff);
+  text-decoration: none;
+}
+
+.table-dark th a:hover,
+.table-dark th button:hover {
+  text-decoration: underline;
+  color: var(--text-muted, #e0e0e0);
+}
+
+.btn-primary {
+  background-color: var(--primary-color, #012169);
+  border-color: var(--primary-color, #012169);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover, #0b2a6b);
+  border-color: var(--primary-hover, #0b2a6b);
+}
+
+.btn-success {
+  background-color: var(--accent-color, #00539B);
+  border-color: var(--accent-color, #00539B);
+}
+
+.btn-success:hover {
+  background-color: var(--accent-hover, #004080);
+  border-color: var(--accent-hover, #004080);
+}
+
+.modal-header {
+  background-color: var(--primary-color, #012169);
+  color: var(--text-light, #ffffff);
+} 

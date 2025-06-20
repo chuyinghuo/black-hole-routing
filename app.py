@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, send_from_directory, send_file, jsonify
 from flask_cors import CORS
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,16 +20,28 @@ load_dotenv(dotenv_path=BASE_DIR / '.env')
 # Import db AFTER sys.path and dotenv setup
 from init_db import db
 
+# React build directory
+REACT_BUILD_DIR = BASE_DIR / 'react-frontend' / 'build'
 TEMPLATE_DIR = BASE_DIR / 'frontend' / 'templates'
 STATIC_DIR = BASE_DIR / 'frontend' / 'static'
 
 def create_app():
-    app = Flask(
-    __name__,
-    static_folder=str(STATIC_DIR),
-    template_folder=str(TEMPLATE_DIR)
-)
-    CORS(app)
+    # Check if React build exists, otherwise use Flask templates
+    if REACT_BUILD_DIR.exists():
+        app = Flask(
+            __name__,
+            static_folder=str(REACT_BUILD_DIR / 'static'),
+            template_folder=str(REACT_BUILD_DIR)
+        )
+    else:
+        app = Flask(
+            __name__,
+            static_folder=str(STATIC_DIR),
+            template_folder=str(TEMPLATE_DIR)
+        )
+    
+    # Enable CORS for development
+    CORS(app, origins=["http://localhost:3000"])
 
     # PostgreSQL-only configuration
     DATABASE_URL = os.getenv("DATABASE_URL")
@@ -73,9 +85,38 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix="/users")
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
+    # Health check endpoint
+    @app.route("/health")
+    def health_check():
+        return jsonify({"status": "healthy"})
+
+    # React routing support
     @app.route("/")
     def root():
-        return redirect(url_for('dashboard.root'))
+        if REACT_BUILD_DIR.exists():
+            return send_file(REACT_BUILD_DIR / 'index.html')
+        else:
+            return redirect(url_for('dashboard.root'))
+
+    # Serve React static files
+    @app.route('/static/<path:filename>')
+    def serve_react_static(filename):
+        if REACT_BUILD_DIR.exists():
+            return send_from_directory(REACT_BUILD_DIR / 'static', filename)
+        else:
+            return send_from_directory(STATIC_DIR, filename)
+
+    # Handle React Router routes (catch-all for frontend routes)
+    @app.route('/<path:path>')
+    def serve_react_app(path):
+        # Don't intercept API routes
+        if path.startswith('api/') or path.startswith('login/') or path.startswith('dashboard/') or path.startswith('blocklist/') or path.startswith('safelist/') or path.startswith('users/'):
+            return app.send_static_file('404.html'), 404
+        
+        if REACT_BUILD_DIR.exists():
+            return send_file(REACT_BUILD_DIR / 'index.html')
+        else:
+            return redirect(url_for('dashboard.root'))
 
     return app
 
@@ -86,4 +127,4 @@ if __name__ == "__main__":
         #db.drop_all()
         db.create_all()
 
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

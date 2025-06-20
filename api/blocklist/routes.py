@@ -10,6 +10,7 @@ from models import Blocklist, User, Safelist, BlockHistory
 from sqlalchemy import cast, String, asc, desc, or_
 from ipaddress import ip_network
 from urllib.parse import quote_plus
+from typing import Optional, Dict, Any
 
 # Add project root to sys.path for module access
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -27,9 +28,13 @@ def home():
             duration_input = data.get("duration")
             time_added = datetime.strptime(time_added_str, "%Y-%m-%dT%H:%M") if time_added_str else datetime.utcnow()
 
-            try:
-                duration_hours = int(duration_input)
-            except (ValueError, TypeError):
+            # Validate and convert duration
+            if duration_input is not None:
+                try:
+                    duration_hours = int(duration_input)
+                except (ValueError, TypeError):
+                    duration_hours = 24
+            else:
                 duration_hours = 24
 
             duration = timedelta(hours=duration_hours)
@@ -38,17 +43,26 @@ def home():
             ip_address = data.get("ip_address")
             comment = data.get("comment") or ""
 
-            try:
-                blocks_count = int(data.get("blocks_count"))
-            except (ValueError, TypeError):
+            # Validate and convert blocks_count
+            blocks_count_input = data.get("blocks_count")
+            if blocks_count_input is not None:
+                try:
+                    blocks_count = int(blocks_count_input)
+                except (ValueError, TypeError):
+                    blocks_count = 1
+            else:
                 blocks_count = 1
 
             created_by_input = data.get("created_by")
 
-            try:
-                ipaddress.ip_network(ip_address, strict=False)
-            except ValueError:
-                return jsonify({'error': 'Invalid IP address or subnet'}), 400
+            # Validate IP address
+            if ip_address:
+                try:
+                    ipaddress.ip_network(ip_address, strict=False)
+                except ValueError:
+                    return jsonify({'error': 'Invalid IP address or subnet'}), 400
+            else:
+                return jsonify({'error': 'IP address is required'}), 400
 
             # Check if IP exists in Safelist
             if Safelist.query.filter_by(ip_address=ip_address).first():
@@ -63,19 +77,21 @@ def home():
                 existing_entry.duration = duration
                 existing_entry.comment = comment
 
-                history_entry = BlockHistory(
-                    ip_address=ip_address,
-                    created_by=existing_entry.created_by,
-                    comment=existing_entry.comment,
-                    added_at=datetime.utcnow(),
-                    unblocked_at=existing_entry.expires_at,
-                )
+                # Create BlockHistory entry with explicit parameters (SQLAlchemy dynamic constructor)
+                history_params: Dict[str, Any] = {
+                    'ip_address': ip_address,
+                    'created_by': existing_entry.created_by,
+                    'comment': existing_entry.comment,
+                    'added_at': datetime.utcnow(),
+                    'unblocked_at': existing_entry.expires_at,
+                }
+                history_entry = BlockHistory(**history_params)  # type: ignore[misc] # SQLAlchemy dynamic constructor
                 db.session.add(history_entry)
                 db.session.commit()
                 return jsonify({'message': 'IP already existed, updated block count and time.'}), 200
 
             # Otherwise, add new blocklist entry
-            created_by = None
+            created_by: Optional[int] = None
             if created_by_input:
                 try:
                     user_id = int(created_by_input)
@@ -85,15 +101,17 @@ def home():
                 except ValueError:
                     pass
 
-            ip_entry = Blocklist(
-                ip_address=ip_address,
-                blocks_count=blocks_count,
-                added_at=time_added,
-                expires_at=time_unblocked,
-                duration=duration,
-                comment=comment,
-                created_by=created_by
-            )
+            # Create Blocklist entry with explicit parameters (SQLAlchemy dynamic constructor)
+            blocklist_params: Dict[str, Any] = {
+                'ip_address': ip_address,
+                'blocks_count': blocks_count,
+                'added_at': time_added,
+                'expires_at': time_unblocked,
+                'duration': duration,
+                'comment': comment,
+                'created_by': created_by
+            }
+            ip_entry = Blocklist(**blocklist_params)  # type: ignore[misc] # SQLAlchemy dynamic constructor
             db.session.add(ip_entry)
             db.session.commit()
             return jsonify({'message': 'IP added successfully'}), 201
@@ -136,6 +154,23 @@ def home():
         print(f"Error fetching IPs: {e}")
         ips = []
 
+    # Check if this is an API request (Accept header contains 'application/json' or from React)
+    if (request.headers.get('Accept', '').find('application/json') != -1 or 
+        request.headers.get('User-Agent', '').find('axios') != -1):
+        # Return JSON response for API requests
+        return jsonify([
+            {
+                'id': entry.id,
+                'ip_address': entry.ip_address,
+                'blocks_count': entry.blocks_count,
+                'added_at': entry.added_at.isoformat() if entry.added_at else None,
+                'expires_at': entry.expires_at.isoformat() if entry.expires_at else None,
+                'comment': entry.comment,
+                'created_by': entry.created_by,
+                'duration': entry.duration.total_seconds() / 3600 if entry.duration else None
+            } for entry in ips
+        ])
+
     message = request.args.get("message")
     return render_template("blocklist.html", ips=ips, message=message)
 
@@ -165,45 +200,81 @@ def search_ip():
 @blocklist_bp.route("/update", methods=["POST"])
 def update():
     try:
-        entry_id = request.form.get("entry_id")
-        ip_entry = Blocklist.query.get(entry_id)
+        # Support both form data and JSON
+        if request.is_json:
+            data = request.get_json()
+            entry_id = data.get("entry_id")
+            ip_address = data.get("ip_address")
+            comment = data.get("comment")
+            time_unblocked = data.get("time_unblocked")
+        else:
+            entry_id = request.form.get("entry_id")
+            ip_address = request.form.get("ip_address")
+            comment = request.form.get("comment")
+            time_unblocked = request.form.get("time_unblocked")
 
+        ip_entry = Blocklist.query.get(entry_id)
         if not ip_entry:
+            if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+                return jsonify({"error": "IP not found"}), 404
             return redirect("/blocklist/?message=IP+not+found")
 
-        ip_entry.ip_address = request.form.get("ip_address")
-        ip_entry.comment = request.form.get("comment")
-        ip_entry.added_at = datetime.utcnow()
-        ip_entry.expires_at = datetime.strptime(request.form.get("time_unblocked"), "%Y-%m-%dT%H:%M")
-        if not request.form.get("time_unblocked"):
+        if not time_unblocked:
+            if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+                return jsonify({"error": "Time unblocked is required"}), 400
             return redirect("/blocklist/?message=Time+Unblocked+is+required")
+
+        ip_entry.ip_address = ip_address
+        ip_entry.comment = comment
+        ip_entry.added_at = datetime.utcnow()
+        ip_entry.expires_at = datetime.strptime(time_unblocked, "%Y-%m-%dT%H:%M")
         added_at = ip_entry.added_at.replace(tzinfo=None)
         ip_entry.duration = ip_entry.expires_at - ip_entry.added_at
 
         if ip_entry.duration.total_seconds() < 3600:
+            if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+                return jsonify({"error": "Duration must be at least 1 hour"}), 400
             return redirect("/blocklist/?message=Duration+must+be+at+least+1+hour")
 
-
         db.session.commit()
+        
+        if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+            return jsonify({"message": "IP updated successfully"}), 200
         return redirect("/blocklist/?message=IP+updated+successfully")
 
     except Exception as e:
         print(f"Error updating IP: {e}")
         db.session.rollback()
+        if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+            return jsonify({"error": f"Error updating IP: {str(e)}"}), 500
         return redirect("/blocklist/?message=Error+updating+IP")
 
 
 @blocklist_bp.route("/delete", methods=["POST"])
 def delete():
     try:
-        entry_id = request.form.get("entry_id")
+        # Support both form data and JSON
+        if request.is_json:
+            data = request.get_json()
+            entry_id = data.get("entry_id")
+        else:
+            entry_id = request.form.get("entry_id")
+        
         ip_entry = Blocklist.query.get(entry_id)
         if ip_entry:
             db.session.delete(ip_entry)
             db.session.commit()
+            
+        # Return JSON for API requests
+        if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+            return jsonify({"message": "Entry deleted successfully"}), 200
+            
     except Exception as e:
         print(f"Error deleting IP: {e}")
         db.session.rollback()
+        if request.is_json or request.headers.get('Accept', '').find('application/json') != -1:
+            return jsonify({"error": f"Failed to delete entry: {str(e)}"}), 500
+            
     return redirect("/blocklist/")
 
 
@@ -216,7 +287,7 @@ def upload_blocklist_csv():
         return redirect("/blocklist/?message=" + quote_plus("No file uploaded"))
 
     file = request.files["file"]
-    if file.filename == '' or not file.filename.endswith('.csv'):
+    if not file.filename or file.filename == '' or not file.filename.endswith('.csv'):
         return redirect("/blocklist/?message=" + quote_plus("Invalid file format"))
 
     try:
@@ -257,15 +328,17 @@ def upload_blocklist_csv():
         duration = timedelta(hours=duration_hours)
         expires_at = now + duration
 
-        entry = Blocklist(
-            ip_address=ip_address,
-            comment=comment,
-            added_at=now,
-            expires_at=expires_at,
-            duration=duration,
-            blocks_count=1,
-            created_by=None
-        )
+        # Create Blocklist entry with explicit parameters (SQLAlchemy dynamic constructor)
+        entry_params: Dict[str, Any] = {
+            'ip_address': ip_address,
+            'comment': comment,
+            'added_at': now,
+            'expires_at': expires_at,
+            'duration': duration,
+            'blocks_count': 1,
+            'created_by': None
+        }
+        entry = Blocklist(**entry_params)  # type: ignore[misc] # SQLAlchemy dynamic constructor
 
         try:
             db.session.add(entry)

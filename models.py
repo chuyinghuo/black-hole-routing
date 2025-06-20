@@ -37,6 +37,9 @@ class User(db.Model):
         if not token or len(token) < 32:
             raise ValueError("Token too short")
         return hashlib.sha256(token.encode()).hexdigest()
+
+    def __repr__(self):
+        return f"<User: {self.net_id}>"
  
 class Blocklist(db.Model):
     __tablename__ = 'blocklist'
@@ -52,6 +55,9 @@ class Blocklist(db.Model):
     duration = db.Column(INTERVAL, nullable=False)
     blocks_count = db.Column(db.Integer, nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    def __repr__(self):
+        return f"<Blocklist IP: {self.ip_address}>"
  
 class Safelist(db.Model):
     __tablename__ = 'safelist'
@@ -66,6 +72,9 @@ class Safelist(db.Model):
     comment = db.Column(db.Text, nullable=True)
     duration = db.Column(INTERVAL, nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    def __repr__(self):
+        return f"<Safelist IP: {self.ip_address}>"
  
 class Historical(db.Model):
     __tablename__ = 'historical'
@@ -78,6 +87,9 @@ class Historical(db.Model):
     unblocked_at = db.Column(db.DateTime(timezone=True), nullable=True)
     duration = db.Column(INTERVAL, nullable=True)
     blocks_count = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self):
+        return f"<Historical IP: {self.ip_address}>"
  
 class BlockHistory(db.Model):
     __tablename__ = 'block_history'
@@ -88,6 +100,9 @@ class BlockHistory(db.Model):
     comment = db.Column(db.Text, nullable=True)
     added_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     unblocked_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    def __repr__(self):
+        return f"<BlockHistory IP: {self.ip_address}>"
  
 class UserToken(db.Model):
     __tablename__ = 'user_tokens'
@@ -104,5 +119,5 @@ class UserToken(db.Model):
             raise ValueError("Token too short")
         return hashlib.sha256(token.encode()).hexdigest()
 
-def __repr__(self):
-    return f"<IP: {self.ip}>"
+    def __repr__(self):
+        return f"<UserToken: {self.user_id}>"

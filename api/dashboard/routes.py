@@ -1,5 +1,3 @@
-import pandas as pd
-import numpy as np
 from flask import Blueprint, render_template, jsonify, request
 from flask_cors import cross_origin
 from models import Blocklist, Safelist, Historical
@@ -33,100 +31,79 @@ def get_dashboard_data():
         print(f"- Safelist: {total_safelist}")
         print(f"- Historical: {historical_count}")
 
-        # Combine Historical and Blocklist data for peak activity calculations
+        # Get historical records for data processing
         historical_records = Historical.query.all()
         blocklist_records = Blocklist.query.all()
         
-        # Convert to DataFrame format
+        print(f"Retrieved {len(historical_records)} historical records")
+        print(f"Retrieved {len(blocklist_records)} blocklist records")
+
+        # Combine all records for peak analysis without pandas
         all_records = []
         
-        # Add Historical records
+        # Process historical records
         for r in historical_records:
             all_records.append({
                 'added_at': r.added_at,
                 'unblocked_at': r.unblocked_at,
-                'ip_address': r.ip_address,
-                'created_by': r.created_by,
+                'ip_address': str(r.ip_address),
+                'created_by': str(r.created_by) if r.created_by else 'Unknown',
                 'source': 'historical'
             })
         
-        # Add Blocklist records (avoid duplicates by checking IP + date combination)
+        # Process blocklist records
         for r in blocklist_records:
-            # Check if this IP with same added_at already exists in historical
-            duplicate = any(
-                hr['ip_address'] == r.ip_address and 
-                hr['added_at'] == r.added_at 
-                for hr in all_records
-            )
-            if not duplicate:
-                all_records.append({
-                    'added_at': r.added_at,
-                    'unblocked_at': r.expires_at,  # Use expires_at for blocklist
-                    'ip_address': r.ip_address,
-                    'created_by': r.created_by,
-                    'source': 'blocklist'
-                })
+            all_records.append({
+                'added_at': r.added_at,
+                'unblocked_at': r.expires_at,
+                'ip_address': str(r.ip_address),
+                'created_by': str(r.created_by) if r.created_by else 'Unknown',
+                'source': 'blocklist'
+            })
 
-        records = historical_records  # Keep original for other calculations
-        print(f"Retrieved {len(records)} historical records")
-        print(f"Combined {len(all_records)} total records for peak analysis")
+        print(f"Combined {len(all_records)} total records for analysis")
 
-        df = pd.DataFrame([{
-            'added_at': r.added_at,
-            'unblocked_at': r.unblocked_at,
-            'ip_address': r.ip_address,
-            'created_by': r.created_by
-        } for r in records])
+        # Calculate peak activity hour (this week) without pandas
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        week_ago = now - timedelta(days=7)
         
-        # Create combined DataFrame for peak calculations
-        combined_df = pd.DataFrame(all_records)
+        weekly_hours = []
+        for record in all_records:
+            if record['added_at'] and record['added_at'] >= week_ago:
+                weekly_hours.append(record['added_at'].hour)
         
-        print(f"DataFrame created with {len(df)} rows")
-        print("DataFrame head:")
-        print(df.head())
-
-        df['added'] = pd.to_datetime(df['added_at'], utc=True)
-        df['unblock_at'] = pd.to_datetime(df['unblocked_at'], utc=True)
-        df['duration'] = (df['unblock_at'] - df['added']).dt.total_seconds() / 3600
-
-        # Calculate peak activity hour (weekly) using combined data
-        now = pd.Timestamp.now(tz='UTC')
-        week_ago = now - pd.Timedelta(days=7)
-        
-        if not combined_df.empty:
-            combined_df['added'] = pd.to_datetime(combined_df['added_at'], utc=True)
-            weekly_data = combined_df[combined_df['added'] >= week_ago]
+        if weekly_hours:
+            # Count frequency of each hour
+            hour_counts = {}
+            for hour in weekly_hours:
+                hour_counts[hour] = hour_counts.get(hour, 0) + 1
             
-            if not weekly_data.empty:
-                weekly_data['hour'] = weekly_data['added'].dt.hour
-                hourly_activity = weekly_data['hour'].value_counts()
-                peak_hour = hourly_activity.index[0] if not hourly_activity.empty else 0
-                peak_hour_formatted = f"{peak_hour:02d}:00"
-                print(f"Peak hour this week: {peak_hour_formatted} (from {len(weekly_data)} records)")
-            else:
-                peak_hour_formatted = "N/A"
-                print("No records in the last 7 days")
+            # Find peak hour
+            peak_hour = max(hour_counts.keys(), key=lambda h: hour_counts[h])
+            peak_hour_formatted = f"{peak_hour:02d}:00"
         else:
             peak_hour_formatted = "N/A"
-            print("No combined data available")
 
-        # Calculate peak activity day (monthly) using combined data
-        month_ago = now - pd.Timedelta(days=30)
+        # Calculate peak activity day (this month) without pandas
+        month_ago = now - timedelta(days=30)
         
-        if not combined_df.empty:
-            monthly_data = combined_df[combined_df['added'] >= month_ago]
+        weekly_days = []
+        for record in all_records:
+            if record['added_at'] and record['added_at'] >= month_ago:
+                day_name = record['added_at'].strftime('%A')
+                weekly_days.append(day_name)
+        
+        if weekly_days:
+            # Count frequency of each day
+            day_counts = {}
+            for day in weekly_days:
+                day_counts[day] = day_counts.get(day, 0) + 1
             
-            if not monthly_data.empty:
-                monthly_data['day_of_week'] = monthly_data['added'].dt.day_name()
-                daily_activity = monthly_data['day_of_week'].value_counts()
-                peak_day = daily_activity.index[0] if not daily_activity.empty else "N/A"
-                print(f"Peak day this month: {peak_day} (from {len(monthly_data)} records)")
-            else:
-                peak_day = "N/A"
-                print("No records in the last 30 days")
+            # Find peak day
+            peak_day = max(day_counts.keys(), key=lambda d: day_counts[d])
         else:
             peak_day = "N/A"
-            print("No combined data available")
 
         stats = {
             'total_blocked': total_blocked,
@@ -137,22 +114,44 @@ def get_dashboard_data():
         
         print("Calculated stats:", stats)
 
-        blocks_by_creator = df['created_by'].value_counts().astype(int).to_dict()
-        timeline_data = df.groupby(df['added'].dt.date.astype(str)).size().astype(int).to_dict()
-        ipv4_count = int(df['ip_address'].str.contains(r'\d+\.\d+\.\d+\.\d+').sum())
-        ipv6_count = int(len(df) - ipv4_count)
+        # Calculate blocks by creator
+        creator_counts = {}
+        for record in historical_records:
+            creator = str(record.created_by) if record.created_by else 'Unknown'
+            creator_counts[creator] = creator_counts.get(creator, 0) + 1
 
-        recent_activity = df.sort_values('added', ascending=False).head(5)
-        recent_activity = [{
-            'added_at': row['added_at'].isoformat(),
-            'ip_address': row['ip_address'],
-            'created_by': row['created_by']
-        } for _, row in recent_activity.iterrows()]
+        # Calculate timeline data (group by date)
+        timeline_counts = {}
+        for record in historical_records:
+            if record.added_at:
+                date_str = record.added_at.strftime('%Y-%m-%d')
+                timeline_counts[date_str] = timeline_counts.get(date_str, 0) + 1
+
+        # Calculate IP distribution
+        ipv4_count = 0
+        ipv6_count = 0
+        for record in historical_records:
+            ip_str = str(record.ip_address)
+            if '.' in ip_str and ':' not in ip_str:  # Simple IPv4 check
+                ipv4_count += 1
+            else:
+                ipv6_count += 1
+
+        # Get recent activity (last 5 records)
+        recent_records = sorted(historical_records, key=lambda r: r.added_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)[:5]
+        recent_activity = []
+        for record in recent_records:
+            if record.added_at:
+                recent_activity.append({
+                    'added_at': record.added_at.isoformat(),
+                    'ip_address': str(record.ip_address),
+                    'created_by': str(record.created_by) if record.created_by else 'Unknown'
+                })
 
         response_data = {
             'stats': stats,
-            'blocks_by_creator': blocks_by_creator,
-            'timeline_data': timeline_data,
+            'blocks_by_creator': creator_counts,
+            'timeline_data': timeline_counts,
             'ip_distribution': {'ipv4': ipv4_count, 'ipv6': ipv6_count},
             'recent_activity': recent_activity
         }
@@ -162,7 +161,6 @@ def get_dashboard_data():
 
     except Exception as e:
         print(f"Error in get_dashboard_data: {str(e)}")
-        print(f"Error occurred at line: {e.__traceback__.tb_lineno}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

@@ -10,6 +10,7 @@ import ipaddress
 import csv
 from io import StringIO
 from sqlalchemy import cast, String, asc, desc ,or_
+from typing import Optional, Dict, Any
  
 safelist_bp = Blueprint('safelist', __name__)
  
@@ -19,6 +20,7 @@ def get_safelist():
     sort_order = request.args.get('order', 'asc')
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
+    search_term = request.args.get('search', '')
 
     valid_fields = {
         'id': Safelist.id,
@@ -36,7 +38,19 @@ def get_safelist():
 
     direction = asc if sort_order == 'asc' else desc
 
-    query = Safelist.query.order_by(direction(sort_column))
+    query = Safelist.query
+    
+    # Add search filtering
+    if search_term:
+        query = query.filter(
+            or_(
+                cast(Safelist.ip_address, String).ilike(f"%{search_term}%"),
+                cast(Safelist.comment, String).ilike(f"%{search_term}%"),
+                cast(Safelist.created_by, String).ilike(f"%{search_term}%")
+            )
+        )
+    
+    query = query.order_by(direction(sort_column))
     total = query.count()
     entries = query.offset((page - 1) * limit).limit(limit).all()
 
@@ -69,6 +83,10 @@ def add_ip():
     created_by = data.get('created_by')
     duration_input = data.get('duration')
 
+    # Validate IP address
+    if not ip_address:
+        return jsonify({'error': 'IP address is required'}), 400
+        
     try:
         ipaddress.ip_network(ip_address, strict=False)
     except ValueError:
@@ -80,6 +98,10 @@ def add_ip():
     if Blocklist.query.filter_by(ip_address=ip_address).first():
         return jsonify({'error': 'IP already exists in blocklist, delete it from blocklist before adding to safelist'}), 400
 
+    # Validate duration
+    if not duration_input:
+        return jsonify({'error': 'Duration is required'}), 400
+        
     try:
         duration_hours = int(duration_input)
         if duration_hours < 1:
@@ -91,21 +113,34 @@ def add_ip():
     added_at = datetime.now(timezone.utc)
     expires_at = added_at + duration
 
-    entry = Safelist(
-        ip_address=ip_address,
-        comment=comment,
-        added_at=added_at,
-        expires_at=expires_at,
-        duration=duration
-    )
-
+    # Get created_by user ID
+    created_by_id: Optional[int] = None
     if created_by is not None:
         try:
             user = db.session.get(User, int(created_by))
             if user:
-                entry.created_by = user.id
+                created_by_id = user.id
         except (ValueError, TypeError):
             pass
+    
+    # If no created_by provided, use first available user
+    if created_by_id is None:
+        default_user = User.query.first()
+        if default_user:
+            created_by_id = default_user.id
+        else:
+            return jsonify({'error': 'No users found in system'}), 500
+
+    # Create entry with explicit parameters (SQLAlchemy dynamic constructor)
+    entry_params: Dict[str, Any] = {
+        'ip_address': ip_address,
+        'comment': comment,
+        'added_at': added_at,
+        'expires_at': expires_at,
+        'duration': duration,
+        'created_by': created_by_id
+    }
+    entry = Safelist(**entry_params)  # type: ignore[misc] # SQLAlchemy dynamic constructor
 
     db.session.add(entry)
     db.session.commit()
@@ -117,7 +152,7 @@ def upload_csv():
         return jsonify({'error': 'No file part'}), 400
 
     file = request.files['file']
-    if file.filename == '' or not file.filename.endswith('.csv'):
+    if file.filename == '' or not (file.filename and file.filename.endswith('.csv')):
         return jsonify({'error': 'Invalid file'}), 400
 
     stream = StringIO(file.stream.read().decode("utf-8"))
@@ -161,13 +196,20 @@ def upload_csv():
         duration = timedelta(hours=duration_hours)
         expires_at = now + duration
 
-        entry = Safelist(
-            ip_address=ip_address,
-            comment=comment,
-            added_at=now,
-            expires_at=expires_at,
-            duration=duration
-        )
+        # Get default user for created_by field
+        default_user = User.query.first()
+        default_user_id = default_user.id if default_user else 1
+
+        # Create entry with explicit parameters (SQLAlchemy dynamic constructor)
+        entry_params: Dict[str, Any] = {
+            'ip_address': ip_address,
+            'comment': comment,
+            'added_at': now,
+            'expires_at': expires_at,
+            'duration': duration,
+            'created_by': default_user_id
+        }
+        entry = Safelist(**entry_params)  # type: ignore[misc] # SQLAlchemy dynamic constructor
 
         db.session.add(entry)
         added += 1
