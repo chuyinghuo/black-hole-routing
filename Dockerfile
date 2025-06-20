@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy entire project into container
 COPY . .
 
+# Copy and make the startup script executable
+COPY start.sh .
+RUN chmod +x start.sh
+
 # Expose port 8080 to host
 EXPOSE 8080
 
@@ -20,5 +24,5 @@ ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=8080
 ENV FLASK_ENV=production
 
-# Run with Flask (can switch to Gunicorn below if needed)
-CMD ["flask", "run", "--port=8080"]
+# Use the custom startup script
+CMD ["./start.sh"]
