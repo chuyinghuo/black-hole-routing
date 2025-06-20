@@ -13,7 +13,7 @@ auth_bp = Blueprint('auth', __name__)
 def login_page():
     return render_template('auth.html')
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/auth', methods=['POST'])
 def authenticate_user():
     data = request.get_json()
 
