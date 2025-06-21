@@ -33,7 +33,7 @@ except ImportError as e:
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 
 # Global Guardian settings
-guardian_enabled = False
+guardian_enabled = True  # Enable Guardian by default
 
 def get_guardian():
     """Get or initialize the Guardian instance"""

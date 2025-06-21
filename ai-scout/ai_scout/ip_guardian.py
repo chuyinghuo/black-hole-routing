@@ -21,19 +21,6 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import IP Guardian
-try:
-    from ai_scout.ip_guardian import IPGuardian
-    GUARDIAN_AVAILABLE = True
-    guardian_instance = None  # Will be initialized when needed
-    GUARDIAN_INITIALIZED = False
-    print("✅ IP Guardian module loaded successfully")
-except ImportError as e:
-    GUARDIAN_AVAILABLE = False
-    GUARDIAN_INITIALIZED = False
-    guardian_instance = None
-    print(f"⚠️  IP Guardian not available: {e}")
-
 # Import Gemini NLP explainer
 try:
     from .gemini_nlp import GeminiNLPExplainer

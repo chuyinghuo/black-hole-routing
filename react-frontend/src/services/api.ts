@@ -213,6 +213,21 @@ class ApiService {
     const response = await apiClient.post('/api/blocklist/guardian/validate', { ip_address: ipAddress });
     return response.data;
   }
+
+  async getAIExplanation(ipAddress: string): Promise<{
+    ip_address: string;
+    risk_level: string;
+    confidence: number;
+    detailed_explanation: string;
+    reasons: string[];
+    suggested_action: string;
+    analysis_time: string;
+    guardian_enabled: boolean;
+    fallback_explanation?: string;
+  }> {
+    const response = await apiClient.post('/api/blocklist/guardian/explain', { ip_address: ipAddress });
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

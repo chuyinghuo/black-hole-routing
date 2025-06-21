@@ -288,21 +288,13 @@ const Blocklist: React.FC = () => {
     setShowExplanationModal(true);
 
     try {
-      const response = await fetch('/api/blocklist/guardian/explain', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ip_address: ipAddress }),
-      });
-
-      const data = await response.json();
+      const data = await apiService.getAIExplanation(ipAddress);
 
       if (data.detailed_explanation) {
         setCurrentExplanation({
           ip: ipAddress,
           explanation: data.detailed_explanation,
-          riskLevel: data.risk_level || 'UNKNOWN',
+          riskLevel: (data.risk_level || 'UNKNOWN').toUpperCase(),
           confidence: data.confidence || 0,
           reasons: data.reasons || [],
           loading: false
