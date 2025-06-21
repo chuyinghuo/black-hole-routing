@@ -1,7 +1,7 @@
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
  
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify
 from init_db import db
 from models import Safelist, User, Blocklist
 from datetime import datetime, timedelta, timezone
@@ -14,7 +14,7 @@ from typing import Optional, Dict, Any
  
 safelist_bp = Blueprint('safelist', __name__)
  
-@safelist_bp.route('/api/safelist', methods=['GET'])
+@safelist_bp.route('/', methods=['GET'])
 def get_safelist():
     sort_field = request.args.get('sort', 'id')
     sort_order = request.args.get('order', 'asc')
@@ -71,11 +71,11 @@ def get_safelist():
         'total': total
     })
  
-@safelist_bp.route('/')
+@safelist_bp.route('/index')
 def index():
-    return render_template('safelist.html')
+    return jsonify({'message': 'Safelist API endpoint - use / for data'})
  
-@safelist_bp.route('/api/safelist', methods=['POST'])
+@safelist_bp.route('/', methods=['POST'])
 def add_ip():
     data = request.get_json()
     ip_address = data.get('ip_address')
@@ -146,7 +146,7 @@ def add_ip():
     db.session.commit()
     return jsonify({'message': 'IP added successfully'}), 201
  
-@safelist_bp.route('/api/safelist/upload', methods=['POST'])
+@safelist_bp.route('/upload', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -217,7 +217,7 @@ def upload_csv():
     db.session.commit()
     return jsonify({'message': f'{added} IP(s) added', 'errors': errors})
  
-@safelist_bp.route('/api/safelist/<int:entry_id>', methods=['PUT'])
+@safelist_bp.route('/<int:entry_id>', methods=['PUT'])
 def edit_ip(entry_id):
     data = request.get_json()
     entry = Safelist.query.get_or_404(entry_id)
@@ -256,14 +256,14 @@ def edit_ip(entry_id):
     db.session.commit()
     return jsonify({'message': 'IP updated successfully'})
  
-@safelist_bp.route('/api/safelist/<int:entry_id>', methods=['DELETE'])
+@safelist_bp.route('/<int:entry_id>', methods=['DELETE'])
 def delete_ip(entry_id):
     entry = Safelist.query.get_or_404(entry_id)
     db.session.delete(entry)
     db.session.commit()
     return jsonify({'message': 'IP deleted successfully'})
  
-@safelist_bp.route('/api/safelist/search', methods=['GET'])
+@safelist_bp.route('/search', methods=['GET'])
 def search_ip():
     query = request.args.get('query')
     if not query:

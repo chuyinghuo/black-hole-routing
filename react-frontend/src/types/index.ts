@@ -28,7 +28,6 @@ export interface SafelistEntry {
   expires_at?: string;
   comment: string;
   created_by: number;
-  is_permanent: boolean;
   duration: number; // in hours
 }
 
@@ -77,10 +76,14 @@ export interface BlocklistFormData {
 export interface SafelistFormData {
   ip_address: string;
   comment: string;
-  expires_at?: string;
-  is_permanent: boolean;
   created_by: string;
   duration: string;
+}
+
+export interface SafelistUpdateData {
+  ip_address: string;
+  comment: string;
+  expires_at?: string;
 }
 
 export interface UserFormData {

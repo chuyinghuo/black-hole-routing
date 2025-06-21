@@ -1,5 +1,5 @@
 import ipaddress
-from flask import Blueprint, render_template, request, redirect, current_app, jsonify
+from flask import Blueprint, request, redirect, current_app, jsonify
 from datetime import datetime, timedelta, timezone
 import sys
 import os
@@ -11,12 +11,116 @@ from sqlalchemy import cast, String, asc, desc, or_
 from ipaddress import ip_network
 from urllib.parse import quote_plus
 from typing import Optional, Dict, Any
+import asyncio
 
 # Add project root to sys.path for module access
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../ai-scout')))
+
+# Import IP Guardian
+try:
+    from ai_scout.ip_guardian import IPGuardian
+    GUARDIAN_AVAILABLE = True
+    guardian_instance = None  # Will be initialized when needed
+    GUARDIAN_INITIALIZED = False
+    print("✅ IP Guardian module loaded successfully")
+except ImportError as e:
+    GUARDIAN_AVAILABLE = False
+    GUARDIAN_INITIALIZED = False
+    guardian_instance = None
+    print(f"⚠️  IP Guardian not available: {e}")
 
 blocklist_bp = Blueprint('blocklist', __name__, template_folder='templates')
 
+# Global Guardian settings
+guardian_enabled = False
+
+def get_guardian():
+    """Get or initialize the Guardian instance"""
+    global guardian_instance, GUARDIAN_INITIALIZED
+    if guardian_instance is None and GUARDIAN_AVAILABLE:
+        try:
+            guardian_instance = IPGuardian()
+            GUARDIAN_INITIALIZED = True
+            print("✅ IP Guardian initialized successfully")
+        except Exception as e:
+            print(f"Failed to initialize IP Guardian: {e}")
+            GUARDIAN_INITIALIZED = False
+    return guardian_instance
+
+async def validate_with_guardian(ip_address: str, bulk_operation: bool = False) -> Dict[str, Any]:
+    """Validate an IP address with the Guardian"""
+    if not guardian_enabled or not GUARDIAN_AVAILABLE:
+        return {'allowed': True, 'reason': 'Guardian disabled'}
+    
+    try:
+        guard = get_guardian()
+        if guard is None:
+            return {'allowed': True, 'reason': 'Guardian not available'}
+        
+        # Prepare context for Guardian
+        context = {'bulk_operation': bulk_operation} if bulk_operation else None
+        result = await guard.validate_blocklist_addition(ip_address, context)
+        return result
+    except Exception as e:
+        print(f"Guardian validation error: {e}")
+        return {'allowed': True, 'reason': f'Guardian error: {str(e)}'}
+
+@blocklist_bp.route("/guardian/status", methods=["GET"])
+def guardian_status():
+    """Get Guardian status and configuration"""
+    return jsonify({
+        'available': GUARDIAN_AVAILABLE,
+        'enabled': guardian_enabled,
+        'guardian_initialized': GUARDIAN_INITIALIZED and guardian_instance is not None
+    })
+
+@blocklist_bp.route("/guardian/toggle", methods=["POST"])
+def toggle_guardian():
+    """Toggle Guardian on/off"""
+    global guardian_enabled
+    data = request.get_json()
+    
+    if not GUARDIAN_AVAILABLE:
+        return jsonify({'error': 'Guardian not available. Install required dependencies.'}), 400
+    
+    guardian_enabled = data.get('enabled', False)
+    
+    # Initialize guardian if enabling
+    if guardian_enabled:
+        guard = get_guardian()
+        if guard is None:
+            return jsonify({'error': 'Failed to initialize Guardian'}), 500
+    
+    return jsonify({
+        'enabled': guardian_enabled,
+        'message': f'Guardian {"enabled" if guardian_enabled else "disabled"}'
+    })
+
+@blocklist_bp.route("/guardian/validate", methods=["POST"])
+def validate_ip():
+    """Validate a single IP address with Guardian"""
+    data = request.get_json()
+    ip_address = data.get('ip_address')
+    
+    if not ip_address:
+        return jsonify({'error': 'IP address required'}), 400
+    
+    if not GUARDIAN_AVAILABLE:
+        return jsonify({
+            'allowed': True,
+            'reason': 'Guardian not available',
+            'risk_level': 'UNKNOWN'
+        })
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(validate_with_guardian(ip_address))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': f'Validation failed: {str(e)}'}), 500
 
 @blocklist_bp.route("/", methods=["GET", "POST"])
 def home():
@@ -63,6 +167,25 @@ def home():
                     return jsonify({'error': 'Invalid IP address or subnet'}), 400
             else:
                 return jsonify({'error': 'IP address is required'}), 400
+
+            # Guardian validation (NEW)
+            if GUARDIAN_AVAILABLE and guardian_enabled:
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    validation = loop.run_until_complete(validate_with_guardian(ip_address))
+                    loop.close()
+                    
+                    if not validation['allowed']:
+                        return jsonify({
+                            'error': 'Guardian prevented block',
+                            'reason': validation.get('recommendation', 'Blocked by Guardian'),
+                            'risk_level': validation.get('risk_level', 'UNKNOWN'),
+                            'guardian_block': True
+                        }), 403
+                except Exception as e:
+                    print(f"Guardian validation error: {e}")
+                    # Continue with blocking if Guardian fails
 
             # Check if IP exists in Safelist
             if Safelist.query.filter_by(ip_address=ip_address).first():
@@ -171,8 +294,19 @@ def home():
             } for entry in ips
         ])
 
-    message = request.args.get("message")
-    return render_template("blocklist.html", ips=ips, message=message)
+    # For any non-API requests, still return JSON (no more templates)
+    return jsonify([
+        {
+            'id': entry.id,
+            'ip_address': entry.ip_address,
+            'blocks_count': entry.blocks_count,
+            'added_at': entry.added_at.isoformat() if entry.added_at else None,
+            'expires_at': entry.expires_at.isoformat() if entry.expires_at else None,
+            'comment': entry.comment,
+            'created_by': entry.created_by,
+            'duration': entry.duration.total_seconds() / 3600 if entry.duration else None
+        } for entry in ips
+    ])
 
 
 @blocklist_bp.route("/search", methods=["GET"])

@@ -41,7 +41,12 @@ def create_app():
         )
     
     # Enable CORS for development
-    CORS(app, origins=["http://localhost:3000"])
+    CORS(app, origins=[
+        "http://localhost:3000",      # React dev server
+        "http://127.0.0.1:3000",
+        "http://localhost:5001",      # Flask server serving React app
+        "http://127.0.0.1:5001"
+    ])
 
     # PostgreSQL-only configuration
     DATABASE_URL = os.getenv("DATABASE_URL")
@@ -78,12 +83,12 @@ def create_app():
     from api.users.routes import users_bp
     from api.dashboard.routes import dashboard_bp
 
-    # Register blueprints
-    app.register_blueprint(auth_bp, url_prefix="/login")
-    app.register_blueprint(blocklist_bp, url_prefix="/blocklist")
-    app.register_blueprint(safelist_bp, url_prefix="/safelist")
-    app.register_blueprint(users_bp, url_prefix="/users")
-    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    # Register blueprints with /api prefix to avoid conflicts with React routes
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(blocklist_bp, url_prefix="/api/blocklist")
+    app.register_blueprint(safelist_bp, url_prefix="/api/safelist")
+    app.register_blueprint(users_bp, url_prefix="/api/users")
+    app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
     # Health check endpoint
     @app.route("/health")
@@ -109,10 +114,12 @@ def create_app():
     # Handle React Router routes (catch-all for frontend routes)
     @app.route('/<path:path>')
     def serve_react_app(path):
-        # Don't intercept API routes
-        if path.startswith('api/') or path.startswith('login/') or path.startswith('dashboard/') or path.startswith('blocklist/') or path.startswith('safelist/') or path.startswith('users/'):
-            return app.send_static_file('404.html'), 404
+        # Let API routes be handled by Flask blueprints
+        if path.startswith('api/') or path == 'health':
+            # Flask will handle these routes through blueprints
+            return jsonify({'error': 'API endpoint not found'}), 404
         
+        # For all non-API routes, serve the React app
         if REACT_BUILD_DIR.exists():
             return send_file(REACT_BUILD_DIR / 'index.html')
         else:

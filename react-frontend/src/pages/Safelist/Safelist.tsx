@@ -28,8 +28,6 @@ const Safelist: React.FC = () => {
   const [addFormData, setAddFormData] = useState<SafelistFormData>({
     ip_address: '',
     comment: '',
-    expires_at: '',
-    is_permanent: false,
     created_by: '',
     duration: ''
   });
@@ -101,8 +99,6 @@ const Safelist: React.FC = () => {
       setAddFormData({
         ip_address: '',
         comment: '',
-        expires_at: '',
-        is_permanent: false,
         created_by: '',
         duration: ''
       });

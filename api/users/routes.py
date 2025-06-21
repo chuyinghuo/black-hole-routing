@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify
 import sys 
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -10,7 +10,7 @@ users_bp = Blueprint('users', __name__, template_folder='templates')
 
 @users_bp.route('/')
 def add_user_form():
-    return render_template('users.html')
+    return jsonify({'message': 'Users API endpoint - use /users for data'})
 
 @users_bp.route('/add-user', methods=['POST'])
 def add_user():

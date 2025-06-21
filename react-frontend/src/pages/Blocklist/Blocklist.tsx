@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { BlocklistEntry, BlocklistFormData, FilterOptions } from '../../types';
+import GuardianToggle from '../../components/Guardian/GuardianToggle';
 import './Blocklist.css';
 
 const Blocklist: React.FC = () => {
@@ -15,6 +16,8 @@ const Blocklist: React.FC = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState('added_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [guardianEnabled, setGuardianEnabled] = useState(false);
+  const [ipValidation, setIpValidation] = useState<{ ip: string; status: any } | null>(null);
 
   // Form states
   const [addFormData, setAddFormData] = useState<BlocklistFormData>({
@@ -44,6 +47,27 @@ const Blocklist: React.FC = () => {
   useEffect(() => {
     loadEntries();
   }, [sortColumn, sortOrder, debouncedSearchTerm]);
+
+  // Real-time IP validation when Guardian is enabled
+  useEffect(() => {
+    if (!guardianEnabled || !addFormData.ip_address.trim()) {
+      setIpValidation(null);
+      return;
+    }
+
+    const validateIP = async () => {
+      try {
+        const result = await apiService.validateIP(addFormData.ip_address);
+        setIpValidation({ ip: addFormData.ip_address, status: result });
+      } catch (error) {
+        console.error('IP validation failed:', error);
+        setIpValidation(null);
+      }
+    };
+
+    const timer = setTimeout(validateIP, 500);
+    return () => clearTimeout(timer);
+  }, [addFormData.ip_address, guardianEnabled]);
 
   const loadEntries = async () => {
     try {
@@ -89,6 +113,28 @@ const Blocklist: React.FC = () => {
     }
   };
 
+  const getRiskLevelColor = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'CRITICAL': return '#f44336';
+      case 'HIGH': return '#ff9800';
+      case 'MEDIUM': return '#2196f3';
+      case 'LOW': return '#2196f3';
+      case 'SAFE': return '#4caf50';
+      default: return '#757575';
+    }
+  };
+
+  const getRiskLevelIcon = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'CRITICAL': return '🚫';
+      case 'HIGH': return '⚠️';
+      case 'MEDIUM': return '🔶';
+      case 'LOW': return '🔶';
+      case 'SAFE': return '✅';
+      default: return '❓';
+    }
+  };
+
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -103,9 +149,21 @@ const Blocklist: React.FC = () => {
         blocks_count: '1',
         created_by: ''
       });
+      setIpValidation(null);
       loadEntries();
     } catch (error: any) {
-      setMessage(error.response?.data?.error || 'Failed to add IP');
+      const errorData = error.response?.data;
+      
+      if (errorData?.guardian_block) {
+        // Guardian blocked the IP
+        setMessage(
+          `🛡️ Guardian Protection: ${errorData.reason}\n` +
+          `Risk Level: ${getRiskLevelIcon(errorData.risk_level)} ${errorData.risk_level}\n` +
+          `This IP was blocked to prevent infrastructure damage.`
+        );
+      } else {
+        setMessage(errorData?.error || 'Failed to add IP');
+      }
     }
   };
 
@@ -220,6 +278,9 @@ const Blocklist: React.FC = () => {
       <div className="container-fluid mt-5">
         <div className="row">
           <div className="col-12">
+            {/* Guardian Toggle */}
+            <GuardianToggle onStatusChange={setGuardianEnabled} />
+
             {message && (
               <div className="alert alert-warning alert-dismissible fade show" role="alert">
                 <strong>{message.split(':')[0]}</strong><br />
@@ -436,6 +497,20 @@ const Blocklist: React.FC = () => {
                       value={addFormData.ip_address}
                       onChange={(e) => setAddFormData({...addFormData, ip_address: e.target.value})}
                     />
+                    {/* Real-time Guardian Validation */}
+                    {guardianEnabled && ipValidation && ipValidation.ip === addFormData.ip_address && (
+                      <div className={`mt-2 p-2 rounded ${ipValidation.status.allowed ? 'bg-success' : 'bg-warning'} bg-opacity-10`}>
+                        <div className="d-flex align-items-center gap-2">
+                          <span style={{ color: getRiskLevelColor(ipValidation.status.risk_level) }}>
+                            {getRiskLevelIcon(ipValidation.status.risk_level)}
+                          </span>
+                          <small className={ipValidation.status.allowed ? 'text-success' : 'text-warning'}>
+                            <strong>Guardian:</strong> {ipValidation.status.reason}
+                            {ipValidation.status.risk_level && ` (${ipValidation.status.risk_level})`}
+                          </small>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Duration (hours)</label>
