@@ -18,6 +18,15 @@ const Blocklist: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [guardianEnabled, setGuardianEnabled] = useState(false);
   const [ipValidation, setIpValidation] = useState<{ ip: string; status: any } | null>(null);
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
+  const [currentExplanation, setCurrentExplanation] = useState<{
+    ip: string;
+    explanation: string;
+    riskLevel: string;
+    confidence: number;
+    reasons: string[];
+    loading: boolean;
+  } | null>(null);
 
   // Form states
   const [addFormData, setAddFormData] = useState<BlocklistFormData>({
@@ -135,10 +144,14 @@ const Blocklist: React.FC = () => {
     }
   };
 
-  const handleAddSubmit = async (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent, overrideGuardian: boolean = false) => {
     e.preventDefault();
     try {
-      const result = await apiService.addBlocklistEntry(addFormData);
+      const formDataWithOverride = overrideGuardian 
+        ? { ...addFormData, override_guardian: true }
+        : addFormData;
+        
+      const result = await apiService.addBlocklistEntry(formDataWithOverride);
       setMessage(result.message || 'IP added successfully');
       setShowAddModal(false);
       setAddFormData({
@@ -154,8 +167,33 @@ const Blocklist: React.FC = () => {
     } catch (error: any) {
       const errorData = error.response?.data;
       
-      if (errorData?.guardian_block) {
-        // Guardian blocked the IP
+      if (errorData?.guardian_block && errorData?.can_override && !overrideGuardian) {
+        // Show Guardian warning with override option
+        const riskIcon = getRiskLevelIcon(errorData.risk_level);
+        const confidence = Math.round((errorData.confidence || 0) * 100);
+        
+        const userConfirmed = window.confirm(
+          `🛡️ GUARDIAN AI WARNING\n\n` +
+          `${riskIcon} Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n\n` +
+          `⚠️ WARNING: ${errorData.reason?.split('\n')[0] || 'This action may cause infrastructure damage'}\n\n` +
+          `🤔 Are you sure you want to proceed?\n` +
+          `Click OK to override the Guardian and add this IP anyway.\n` +
+          `Click Cancel to abort and review the AI analysis.`
+        );
+        
+        if (userConfirmed) {
+          // User chose to override - retry with override flag
+          handleAddSubmit(e, true);
+        } else {
+          // User cancelled - show the detailed explanation
+          setMessage(
+            `🛡️ Guardian Protection Active\n` +
+            `${riskIcon} Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n` +
+            `Action cancelled by user. Click the "🤖 AI" button for detailed analysis.`
+          );
+        }
+      } else if (errorData?.guardian_block) {
+        // Guardian blocked without override option
         setMessage(
           `🛡️ Guardian Protection: ${errorData.reason}\n` +
           `Risk Level: ${getRiskLevelIcon(errorData.risk_level)} ${errorData.risk_level}\n` +
@@ -230,13 +268,67 @@ const Blocklist: React.FC = () => {
   };
 
   const handleSelectEntry = (id: number, checked: boolean) => {
-    const newSelectedIds = new Set(selectedIds);
+    const newSelected = new Set(selectedIds);
     if (checked) {
-      newSelectedIds.add(id);
+      newSelected.add(id);
     } else {
-      newSelectedIds.delete(id);
+      newSelected.delete(id);
     }
-    setSelectedIds(newSelectedIds);
+    setSelectedIds(newSelected);
+  };
+
+  const getAIExplanation = async (ipAddress: string) => {
+    setCurrentExplanation({
+      ip: ipAddress,
+      explanation: '',
+      riskLevel: '',
+      confidence: 0,
+      reasons: [],
+      loading: true
+    });
+    setShowExplanationModal(true);
+
+    try {
+      const response = await fetch('/api/blocklist/guardian/explain', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ip_address: ipAddress }),
+      });
+
+      const data = await response.json();
+
+      if (data.detailed_explanation) {
+        setCurrentExplanation({
+          ip: ipAddress,
+          explanation: data.detailed_explanation,
+          riskLevel: data.risk_level || 'UNKNOWN',
+          confidence: data.confidence || 0,
+          reasons: data.reasons || [],
+          loading: false
+        });
+      } else {
+        setCurrentExplanation({
+          ip: ipAddress,
+          explanation: data.fallback_explanation || 'No detailed explanation available.',
+          riskLevel: 'UNKNOWN',
+          confidence: 0,
+          reasons: [],
+          loading: false
+        });
+      }
+    } catch (error) {
+      console.error('Failed to get AI explanation:', error);
+      setCurrentExplanation({
+        ip: ipAddress,
+        explanation: 'Failed to get AI explanation. Please try again later.',
+        riskLevel: 'ERROR',
+        confidence: 0,
+        reasons: [],
+        loading: false
+      });
+    }
   };
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -450,6 +542,14 @@ const Blocklist: React.FC = () => {
                       <td>
                         <button
                           type="button"
+                          className="btn btn-sm btn-info me-1"
+                          onClick={() => getAIExplanation(entry.ip_address)}
+                          title="Get AI explanation about blocking this IP"
+                        >
+                          🤖 AI
+                        </button>
+                        <button
+                          type="button"
                           className="btn btn-sm btn-warning updateBtn me-1"
                           onClick={() => fillEditForm(entry.id, entry.ip_address, entry.expires_at, entry.comment)}
                         >
@@ -611,6 +711,94 @@ const Blocklist: React.FC = () => {
         </div>
       )}
       {showEditModal && <div className="modal-backdrop fade show"></div>}
+
+      {/* AI Explanation Modal */}
+      {showExplanationModal && currentExplanation && (
+        <div className="modal fade show" id="aiExplanationModal" tabIndex={-1} aria-labelledby="aiExplanationModalLabel" aria-hidden="true" style={{ display: 'block' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="aiExplanationModalLabel">
+                  🤖 AI Analysis: {currentExplanation.ip}
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowExplanationModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {currentExplanation.loading ? (
+                  <div className="text-center p-4">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">AI is analyzing the impact of blocking this IP...</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Risk Level Header */}
+                    {currentExplanation.riskLevel !== 'UNKNOWN' && currentExplanation.riskLevel !== 'ERROR' && (
+                      <div className="alert alert-info d-flex align-items-center mb-3">
+                        <span className="me-2" style={{ fontSize: '1.5em' }}>
+                          {getRiskLevelIcon(currentExplanation.riskLevel)}
+                        </span>
+                        <div>
+                          <strong>Risk Level: {currentExplanation.riskLevel}</strong>
+                          {currentExplanation.confidence > 0 && (
+                            <span className="ms-2 badge bg-secondary">
+                              {Math.round(currentExplanation.confidence * 100)}% Confidence
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Explanation */}
+                    <div className="card">
+                      <div className="card-header">
+                        <h6 className="mb-0">🧠 AI-Powered Impact Analysis</h6>
+                      </div>
+                      <div className="card-body">
+                        <pre style={{ 
+                          whiteSpace: 'pre-wrap', 
+                          fontFamily: 'inherit',
+                          fontSize: '0.9em',
+                          margin: 0,
+                          background: 'none',
+                          border: 'none'
+                        }}>
+                          {currentExplanation.explanation}
+                        </pre>
+                      </div>
+                    </div>
+
+                    {/* Raw Reasons (if available) */}
+                    {currentExplanation.reasons && currentExplanation.reasons.length > 0 && (
+                      <div className="card mt-3">
+                        <div className="card-header">
+                          <h6 className="mb-0">🔍 Detection Details</h6>
+                        </div>
+                        <div className="card-body">
+                          <ul className="list-group list-group-flush">
+                            {currentExplanation.reasons.map((reason, index) => (
+                              <li key={index} className="list-group-item px-0">
+                                <small>{reason}</small>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowExplanationModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showExplanationModal && <div className="modal-backdrop fade show"></div>}
     </>
   );
 };

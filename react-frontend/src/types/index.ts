@@ -71,6 +71,7 @@ export interface BlocklistFormData {
   comment: string;
   blocks_count: string;
   created_by: string;
+  override_guardian?: boolean;
 }
 
 export interface SafelistFormData {

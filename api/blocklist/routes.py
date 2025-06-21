@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 # Import IP Guardian
 try:
-    from ai_scout.ip_guardian import IPGuardian
+    from ai_scout.ip_guardian import IPGuardianAgent
     GUARDIAN_AVAILABLE = True
     guardian_instance = None  # Will be initialized when needed
     GUARDIAN_INITIALIZED = False
@@ -40,7 +40,7 @@ def get_guardian():
     global guardian_instance, GUARDIAN_INITIALIZED
     if guardian_instance is None and GUARDIAN_AVAILABLE:
         try:
-            guardian_instance = IPGuardian()
+            guardian_instance = IPGuardianAgent()
             GUARDIAN_INITIALIZED = True
             print("✅ IP Guardian initialized successfully")
         except Exception as e:
@@ -168,8 +168,10 @@ def home():
             else:
                 return jsonify({'error': 'IP address is required'}), 400
 
-            # Guardian validation (NEW)
-            if GUARDIAN_AVAILABLE and guardian_enabled:
+            # Guardian validation with override support
+            override_guardian = data.get('override_guardian', False)
+            
+            if GUARDIAN_AVAILABLE and guardian_enabled and not override_guardian:
                 try:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
@@ -181,7 +183,10 @@ def home():
                             'error': 'Guardian prevented block',
                             'reason': validation.get('recommendation', 'Blocked by Guardian'),
                             'risk_level': validation.get('risk_level', 'UNKNOWN'),
-                            'guardian_block': True
+                            'confidence': validation.get('confidence', 0),
+                            'guardian_block': True,
+                            'can_override': True,
+                            'detailed_explanation': validation.get('recommendation', 'Blocked by Guardian')
                         }), 403
                 except Exception as e:
                     print(f"Guardian validation error: {e}")
@@ -508,3 +513,60 @@ def bulk_delete():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Deletion failed: {str(e)}"}), 500
+
+@blocklist_bp.route('/guardian/explain', methods=['POST'])
+def explain_ip_impact():
+    """Get detailed AI explanation about the impact of blocking an IP"""
+    try:
+        data = request.get_json()
+        ip_address = data.get('ip_address', '').strip()
+        
+        if not ip_address:
+            return jsonify({'error': 'IP address is required'}), 400
+        
+        # Get detailed analysis from Guardian AI
+        if GUARDIAN_AVAILABLE and guardian_enabled:
+            import asyncio
+            try:
+                guard = get_guardian()
+                if guard is None:
+                    return jsonify({
+                        'ip_address': ip_address,
+                        'guardian_enabled': False,
+                        'fallback_explanation': f'AI Guardian failed to initialize. Manual review recommended for {ip_address} before blocking.'
+                    })
+                
+                # Run the async function in a new event loop
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(guard.validate_blocklist_addition(ip_address))
+                loop.close()
+                
+                return jsonify({
+                    'ip_address': ip_address,
+                    'risk_level': result['risk_level'],
+                    'confidence': result['confidence'],
+                    'detailed_explanation': result['recommendation'],
+                    'reasons': result['reasons'],
+                    'suggested_action': result['action'],
+                    'analysis_time': result['analysis_time'],
+                    'guardian_enabled': True
+                })
+            except Exception as e:
+                print(f"Guardian analysis failed: {str(e)}")
+                return jsonify({
+                    'ip_address': ip_address,
+                    'error': 'AI analysis failed',
+                    'guardian_enabled': False,
+                    'fallback_explanation': f'Unable to perform detailed analysis for {ip_address}. Consider consulting with network administrators before blocking this IP.'
+                }), 500
+        else:
+            return jsonify({
+                'ip_address': ip_address,
+                'guardian_enabled': False,
+                'fallback_explanation': f'AI Guardian is not available. Manual review recommended for {ip_address} before blocking.'
+            })
+            
+    except Exception as e:
+        print(f"Error in explain_ip_impact: {str(e)}")
+        return jsonify({'error': 'Failed to analyze IP impact'}), 500

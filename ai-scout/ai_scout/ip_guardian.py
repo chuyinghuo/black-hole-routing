@@ -21,6 +21,29 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import IP Guardian
+try:
+    from ai_scout.ip_guardian import IPGuardian
+    GUARDIAN_AVAILABLE = True
+    guardian_instance = None  # Will be initialized when needed
+    GUARDIAN_INITIALIZED = False
+    print("✅ IP Guardian module loaded successfully")
+except ImportError as e:
+    GUARDIAN_AVAILABLE = False
+    GUARDIAN_INITIALIZED = False
+    guardian_instance = None
+    print(f"⚠️  IP Guardian not available: {e}")
+
+# Import Gemini NLP explainer
+try:
+    from .gemini_nlp import GeminiNLPExplainer
+    GEMINI_AVAILABLE = True
+    print("✅ Gemini NLP module loaded successfully")
+except ImportError as e:
+    GEMINI_AVAILABLE = False
+    print(f"⚠️  Gemini NLP not available: {e}")
+    GeminiNLPExplainer = None
+
 class RiskLevel(Enum):
     SAFE = "safe"
     LOW = "low"
@@ -44,11 +67,31 @@ class IPGuardianAgent:
     """AI agent that monitors and validates IP addresses before blocklist addition"""
     
     def __init__(self, redis_host='localhost', redis_port=6379):
-        self.redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+        try:
+            self.redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+            # Test Redis connection
+            self.redis_client.ping()
+            self.redis_enabled = True
+        except Exception:
+            self.redis_client = None
+            self.redis_enabled = False
+            logger.warning("Redis not available, running without cache")
+            
         self.critical_networks = self._load_critical_networks()
         self.trusted_sources = self._load_trusted_sources()
         self.analysis_cache = {}
         self.blocked_count_threshold = 1000  # Alert if blocking would affect >1000 IPs
+        
+        # Initialize Gemini NLP explainer
+        if GEMINI_AVAILABLE:
+            try:
+                self.gemini_explainer = GeminiNLPExplainer()
+                logger.info("✅ Gemini NLP explainer initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Gemini NLP: {e}")
+                self.gemini_explainer = None
+        else:
+            self.gemini_explainer = None
         
         # Initialize local database for IP intelligence
         self.db_path = Path("ip_intelligence.db")
@@ -486,15 +529,16 @@ class IPGuardianAgent:
     def _determine_risk_level(self, risk_score: float, reasons: List[str]) -> Tuple[RiskLevel, str]:
         """Determine overall risk level and suggested action"""
         
-        # Check for critical keywords in reasons
-        critical_keywords = ["CRITICAL", "localhost", "private network", "dns", "google", "cloudflare"]
-        high_risk_keywords = ["HIGH RISK", "major", "provider", "government", "university"]
+        # Check for critical keywords in reasons - these override all other scoring
+        critical_keywords = ["CRITICAL:", "localhost", "private network", "Google DNS", "Cloudflare DNS", "essential network"]
+        high_risk_keywords = ["HIGH RISK:", "major", "provider", "government", "university"]
         
+        # If ANY reason contains CRITICAL keywords, immediately escalate to CRITICAL
         has_critical = any(any(keyword.lower() in reason.lower() for keyword in critical_keywords) for reason in reasons)
         has_high_risk = any(any(keyword.lower() in reason.lower() for keyword in high_risk_keywords) for reason in reasons)
         
-        if has_critical or risk_score >= 0.9:
-            return RiskLevel.CRITICAL, "BLOCK - Critical infrastructure risk"
+        if has_critical:
+            return RiskLevel.CRITICAL, "BLOCK - Critical infrastructure risk detected"
         elif has_high_risk or risk_score >= 0.7:
             return RiskLevel.HIGH, "MANUAL_REVIEW - High risk, requires approval"
         elif risk_score >= 0.5:
@@ -554,17 +598,253 @@ class IPGuardianAgent:
         return validation_result
     
     def _generate_recommendation(self, analysis: IPAnalysis) -> str:
-        """Generate human-readable recommendation"""
+        """Generate comprehensive AI-powered recommendation with detailed explanations"""
+        
+        # Try to get Gemini-powered explanation first
+        if self.gemini_explainer and self.gemini_explainer.is_available():
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                gemini_result = loop.run_until_complete(
+                    self.gemini_explainer.generate_advanced_explanation(
+                        analysis.ip_address,
+                        analysis.risk_level.value,
+                        analysis.reasons,
+                        analysis.confidence
+                    )
+                )
+                loop.close()
+                
+                # Format Gemini response
+                gemini_explanation = self._format_gemini_explanation(gemini_result, analysis.risk_level)
+                if gemini_explanation:
+                    return gemini_explanation
+            except Exception as e:
+                logger.warning(f"Gemini explanation failed, falling back to standard: {e}")
+        
+        # Fallback to enhanced local explanation system
+        explanation = self._generate_detailed_explanation(analysis)
+        
         if analysis.risk_level == RiskLevel.CRITICAL:
-            return f"🚫 CRITICAL: Do not block! This could cause severe infrastructure damage. Reasons: {'; '.join(analysis.reasons[:2])}"
+            return f"🚫 CRITICAL RISK - DO NOT BLOCK!\n\n{explanation}\n\n💡 ALTERNATIVE: Consider allowlisting this IP instead or investigating the source of malicious activity."
         elif analysis.risk_level == RiskLevel.HIGH:
-            return f"⚠️  HIGH RISK: Manual review required before blocking. Reasons: {'; '.join(analysis.reasons[:2])}"
+            return f"⚠️ HIGH RISK - MANUAL REVIEW REQUIRED\n\n{explanation}\n\n🔍 RECOMMENDED ACTION: Have a network administrator review this decision before proceeding."
         elif analysis.risk_level == RiskLevel.MEDIUM:
-            return f"🔶 MEDIUM: Proceed with caution. Monitor for impact after blocking."
+            return f"🔶 MEDIUM RISK - PROCEED WITH CAUTION\n\n{explanation}\n\n📊 RECOMMENDED ACTION: Monitor network traffic after blocking for any service disruptions."
         elif analysis.risk_level == RiskLevel.LOW:
-            return f"🔶 LOW RISK: Generally safe to block, but monitor for false positives."
+            return f"🟡 LOW RISK - GENERALLY SAFE\n\n{explanation}\n\n✅ RECOMMENDED ACTION: Safe to proceed, but maintain monitoring for false positives."
         else:
-            return f"✅ SAFE: No significant risks detected. Safe to block."
+            return f"✅ SAFE TO BLOCK\n\n{explanation}\n\n🎯 RECOMMENDED ACTION: No significant risks detected. Proceed with blocking."
+    
+    def _generate_detailed_explanation(self, analysis: IPAnalysis) -> str:
+        """Generate detailed AI-powered explanation of blocking consequences"""
+        
+        explanations = []
+        
+        # Analyze each reason and provide detailed context
+        for reason in analysis.reasons:
+            if "Google DNS" in reason:
+                explanations.append(
+                    "🌐 CRITICAL INFRASTRUCTURE IMPACT:\n"
+                    "• Blocking Google DNS (8.8.8.8/8.8.4.4) would break internet connectivity for millions of users\n"
+                    "• Many applications, routers, and devices are hardcoded to use these servers\n"
+                    "• This could cause cascading failures across your entire network infrastructure\n"
+                    "• Legal implications: Could be considered service disruption affecting public services"
+                )
+            
+            elif "Cloudflare DNS" in reason:
+                explanations.append(
+                    "☁️ DNS INFRASTRUCTURE IMPACT:\n"
+                    "• Cloudflare DNS (1.1.1.1) is used by millions of devices globally\n"
+                    "• Blocking this would cause DNS resolution failures for users who rely on it\n"
+                    "• Many privacy-focused applications default to Cloudflare DNS\n"
+                    "• Could break VPN services and security applications that depend on it"
+                )
+            
+            elif "private network" in reason.lower():
+                explanations.append(
+                    "🏠 PRIVATE NETWORK IMPACT:\n"
+                    "• This is a private IP address used for internal network communication\n"
+                    "• Blocking private IPs could break internal services, file sharing, and device communication\n"
+                    "• Could affect printers, IoT devices, internal servers, and workstation connectivity\n"
+                    "• May cause authentication issues with domain controllers or internal databases"
+                )
+            
+            elif "localhost" in reason.lower():
+                explanations.append(
+                    "💻 LOCALHOST IMPACT:\n"
+                    "• Localhost (127.0.0.1) is essential for local system communication\n"
+                    "• Blocking this would break local applications, databases, and development tools\n"
+                    "• Could prevent web servers, APIs, and local services from functioning\n"
+                    "• May cause system instability and prevent troubleshooting tools from working"
+                )
+            
+            elif "cloud provider" in reason.lower() or "AWS" in reason or "Microsoft" in reason or "Azure" in reason:
+                explanations.append(
+                    "☁️ CLOUD INFRASTRUCTURE IMPACT:\n"
+                    "• This IP belongs to a major cloud provider (AWS/Azure/GCP)\n"
+                    "• Blocking could affect critical business applications hosted in the cloud\n"
+                    "• May break email services, web applications, APIs, and data synchronization\n"
+                    "• Could impact remote work capabilities and customer-facing services\n"
+                    "• Financial impact: Potential service downtime affecting revenue"
+                )
+            
+            elif "CDN" in reason or "content delivery" in reason.lower():
+                explanations.append(
+                    "🚀 CONTENT DELIVERY IMPACT:\n"
+                    "• This IP is part of a Content Delivery Network (CDN)\n"
+                    "• Blocking could slow down or break website loading for users\n"
+                    "• May affect media streaming, software updates, and file downloads\n"
+                    "• Could impact user experience and website performance metrics"
+                )
+            
+            elif "government" in reason.lower():
+                explanations.append(
+                    "🏛️ GOVERNMENT NETWORK IMPACT:\n"
+                    "• This IP belongs to a government network or agency\n"
+                    "• Blocking could interfere with legitimate government communications\n"
+                    "• May affect compliance with government regulations or contracts\n"
+                    "• Could have legal implications if blocking interferes with official business\n"
+                    "• Recommended: Contact legal/compliance team before proceeding"
+                )
+            
+            elif "university" in reason.lower() or "education" in reason.lower():
+                explanations.append(
+                    "🎓 EDUCATIONAL NETWORK IMPACT:\n"
+                    "• This IP belongs to an educational institution\n"
+                    "• Blocking could affect research collaboration and academic communications\n"
+                    "• May interfere with student access to educational resources\n"
+                    "• Could impact legitimate academic research and data sharing"
+                )
+            
+            elif "ISP" in reason or "internet service provider" in reason.lower():
+                explanations.append(
+                    "🌐 ISP INFRASTRUCTURE IMPACT:\n"
+                    "• This IP belongs to a major Internet Service Provider\n"
+                    "• Blocking could affect thousands of legitimate users on this ISP\n"
+                    "• May cause collateral damage to innocent users sharing this IP range\n"
+                    "• Could impact business customers and residential users alike"
+                )
+            
+            elif "large network" in reason.lower() or "affects many IPs" in reason:
+                explanations.append(
+                    "📊 SCALE IMPACT ANALYSIS:\n"
+                    "• This block would affect a large number of IP addresses\n"
+                    "• High probability of blocking legitimate users along with threats\n"
+                    "• Could cause widespread service disruptions\n"
+                    "• Recommended: Use more targeted blocking or implement rate limiting instead"
+                )
+        
+        # If no specific explanations were generated, provide general analysis
+        if not explanations:
+            explanations.append(self._generate_general_impact_analysis(analysis))
+        
+        # Add business impact assessment
+        business_impact = self._assess_business_impact(analysis)
+        if business_impact:
+            explanations.append(business_impact)
+        
+        # Add alternative recommendations
+        alternatives = self._suggest_alternatives(analysis)
+        if alternatives:
+            explanations.append(alternatives)
+        
+        return "\n\n".join(explanations)
+    
+    def _generate_general_impact_analysis(self, analysis: IPAnalysis) -> str:
+        """Generate general impact analysis when specific patterns aren't matched"""
+        
+        impact_factors = []
+        
+        # Analyze confidence level
+        if analysis.confidence > 0.9:
+            impact_factors.append("• High confidence in risk assessment - strong indicators present")
+        elif analysis.confidence > 0.7:
+            impact_factors.append("• Moderate confidence - some risk indicators detected")
+        else:
+            impact_factors.append("• Lower confidence - limited data available for assessment")
+        
+        # Analyze number of reasons
+        if len(analysis.reasons) > 5:
+            impact_factors.append("• Multiple risk factors identified - comprehensive threat profile")
+        elif len(analysis.reasons) > 2:
+            impact_factors.append("• Several risk factors present - moderate complexity")
+        else:
+            impact_factors.append("• Limited risk factors - straightforward case")
+        
+        # General network impact
+        if analysis.risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]:
+            impact_factors.append("• Potential for significant network or service disruption")
+            impact_factors.append("• May affect multiple users or critical infrastructure")
+        
+        return f"📋 GENERAL IMPACT ANALYSIS:\n" + "\n".join(impact_factors)
+    
+    def _assess_business_impact(self, analysis: IPAnalysis) -> str:
+        """Assess potential business impact of blocking this IP"""
+        
+        if analysis.risk_level == RiskLevel.CRITICAL:
+            return (
+                "💼 BUSINESS IMPACT ASSESSMENT:\n"
+                "• SEVERE: Could cause major service outages affecting revenue\n"
+                "• May result in customer complaints and support tickets\n"
+                "• Potential SLA violations and contractual penalties\n"
+                "• Could damage company reputation and customer trust\n"
+                "• Estimated recovery time: Hours to days depending on infrastructure"
+            )
+        elif analysis.risk_level == RiskLevel.HIGH:
+            return (
+                "💼 BUSINESS IMPACT ASSESSMENT:\n"
+                "• MODERATE: May cause service degradation or limited outages\n"
+                "• Potential impact on specific user groups or services\n"
+                "• Could require manual intervention to resolve issues\n"
+                "• May affect productivity for certain departments\n"
+                "• Estimated recovery time: Minutes to hours"
+            )
+        elif analysis.risk_level == RiskLevel.MEDIUM:
+            return (
+                "💼 BUSINESS IMPACT ASSESSMENT:\n"
+                "• LOW-MODERATE: Minor impact expected\n"
+                "• May cause inconvenience for some users\n"
+                "• Generally manageable with standard procedures\n"
+                "• Limited effect on overall business operations"
+            )
+        
+        return None
+    
+    def _suggest_alternatives(self, analysis: IPAnalysis) -> str:
+        """Suggest alternative security measures instead of blocking"""
+        
+        alternatives = []
+        
+        if analysis.risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]:
+            alternatives.extend([
+                "🔄 ALTERNATIVE SECURITY MEASURES:",
+                "• Rate limiting: Limit connections per minute instead of complete blocking",
+                "• Geo-blocking: Block specific countries while allowing legitimate traffic",
+                "• Deep packet inspection: Analyze traffic content rather than blocking IPs",
+                "• Allowlist approach: Explicitly allow known good IPs and block others",
+                "• Behavioral analysis: Monitor for suspicious patterns instead of IP-based blocking"
+            ])
+        
+        if "DNS" in " ".join(analysis.reasons):
+            alternatives.extend([
+                "• DNS filtering: Block malicious domains instead of DNS servers",
+                "• Custom DNS configuration: Redirect to internal DNS servers",
+                "• DNS monitoring: Log and analyze DNS queries for threats"
+            ])
+        
+        if "cloud" in " ".join(analysis.reasons).lower():
+            alternatives.extend([
+                "• Application-level blocking: Block specific services instead of entire IP ranges",
+                "• API rate limiting: Control access to cloud services",
+                "• Cloud security groups: Use provider-native security controls"
+            ])
+        
+        if alternatives:
+            return "\n".join(alternatives)
+        
+        return None
     
     def _log_validation_attempt(self, result: Dict):
         """Log validation attempts for audit trail"""
@@ -630,6 +910,62 @@ class IPGuardianAgent:
         except Exception as e:
             logger.error(f"Failed to get validation stats: {str(e)}")
             return {}
+
+    def _format_gemini_explanation(self, gemini_result: dict, risk_level: RiskLevel) -> str:
+        """Format Gemini AI explanation into the standard recommendation format"""
+        
+        if not gemini_result or not isinstance(gemini_result, dict):
+            return None
+        
+        # Get risk level emoji
+        risk_emoji = {
+            RiskLevel.CRITICAL: "🚫",
+            RiskLevel.HIGH: "⚠️",
+            RiskLevel.MEDIUM: "🔶", 
+            RiskLevel.LOW: "🟡",
+            RiskLevel.SAFE: "✅"
+        }.get(risk_level, "❓")
+        
+        # Get risk level title
+        risk_title = {
+            RiskLevel.CRITICAL: "CRITICAL RISK - DO NOT BLOCK!",
+            RiskLevel.HIGH: "HIGH RISK - MANUAL REVIEW REQUIRED",
+            RiskLevel.MEDIUM: "MEDIUM RISK - PROCEED WITH CAUTION",
+            RiskLevel.LOW: "LOW RISK - GENERALLY SAFE",
+            RiskLevel.SAFE: "SAFE TO BLOCK"
+        }.get(risk_level, "UNKNOWN RISK")
+        
+        # Build formatted explanation
+        sections = []
+        
+        # Main explanation
+        if gemini_result.get("explanation"):
+            sections.append(f"🧠 AI ANALYSIS:\n{gemini_result['explanation']}")
+        
+        # Technical impact
+        if gemini_result.get("technical_impact"):
+            sections.append(f"⚙️ TECHNICAL IMPACT:\n{gemini_result['technical_impact']}")
+        
+        # Business impact
+        if gemini_result.get("business_impact"):
+            sections.append(f"💼 BUSINESS IMPACT:\n{gemini_result['business_impact']}")
+        
+        # Alternatives
+        if gemini_result.get("alternatives"):
+            sections.append(f"🔄 ALTERNATIVE MEASURES:\n{gemini_result['alternatives']}")
+        
+        # Recommendations
+        if gemini_result.get("recommendations"):
+            sections.append(f"💡 RECOMMENDATIONS:\n{gemini_result['recommendations']}")
+        
+        # Severity justification
+        if gemini_result.get("severity_justification"):
+            sections.append(f"📊 RISK ASSESSMENT:\n{gemini_result['severity_justification']}")
+        
+        # Combine all sections
+        explanation_body = "\n\n".join(sections) if sections else "Detailed analysis not available"
+        
+        return f"{risk_emoji} {risk_title}\n\n{explanation_body}"
 
 # Example usage and testing
 async def test_ip_guardian():
