@@ -233,8 +233,8 @@ const Users: React.FC = () => {
 
               </div>
               <button 
-                id="showFormBtn" 
-                className="btn btn-primary me-2" 
+                id="showFormBtn"
+                className="btn btn-primary btn-icon btn-add me-2" 
                 onClick={() => setShowAddModal(true)}
               >
                 Add User
@@ -288,23 +288,26 @@ const Users: React.FC = () => {
                         </span>
                       </td>
                       <td>
-                        <button 
-                          className="btn btn-sm btn-warning me-1" 
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-warning btn-icon btn-edit me-1"
                           onClick={() => fillUpdateForm(user)}
                           disabled={!user.active}
                         >
                           Update
                         </button>
                         {user.active ? (
-                          <button 
-                            className="btn btn-sm btn-danger" 
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger btn-icon btn-delete"
                             onClick={() => handleDelete(user.id)}
                           >
                             Deactivate
                           </button>
                         ) : (
-                          <button 
-                            className="btn btn-sm btn-success" 
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-success btn-icon btn-refresh"
                             onClick={() => handleReinstate(user.id)}
                           >
                             Reinstate
@@ -375,7 +378,7 @@ const Users: React.FC = () => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="submit" className="btn btn-primary">Add User</button>
+                <button type="submit" className="btn btn-primary btn-icon btn-add">Add User</button>
               </div>
             </form>
           </div>
@@ -431,7 +434,7 @@ const Users: React.FC = () => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+                <button type="submit" className="btn btn-primary btn-icon btn-save">Save Changes</button>
               </div>
             </form>
           </div>

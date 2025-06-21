@@ -411,10 +411,10 @@ const Dashboard: React.FC = () => {
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" id="clearFilter" onClick={handleClearFilter}>
+                <button type="button" className="btn btn-secondary btn-icon btn-cancel" id="clearFilter" onClick={handleClearFilter}>
                   Clear Filter
                 </button>
-                <button type="submit" className="btn btn-success">Apply Filter</button>
+                <button type="submit" className="btn btn-success btn-icon btn-save">Apply Filter</button>
               </div>
             </form>
           </div>

@@ -1,43 +1,69 @@
 /* ==========================================================================
-   BRAND VARIABLES — Customize this section to match your university's theme
+   BRAND VARIABLES — Gray and Duke Blue Theme
    ========================================================================== */
 
 :root {
-    --primary-color: #012169;         /* Main brand color (Duke blue) */
-    --primary-hover: #0b2a6b;         /* Hover state for primary buttons */
-    --accent-color: #00539B;          /* Secondary accent color */
-    --accent-hover: #004080;          /* Hover for success buttons */
-    --warning-color: #ffc107;         /* Warning (yellow) */
+    --primary-color: rgb(0, 48, 135);         /* Duke Blue RGB(0, 48, 135) */
+    --primary-hover: rgb(0, 35, 100);         /* Darker Duke Blue for hover */
+    --accent-color: rgb(108, 117, 125);       /* Medium Gray */
+    --accent-hover: rgb(90, 98, 104);         /* Darker Medium Gray */
+    --warning-color: #ffc107;                 /* Warning (yellow) */
     --warning-hover: #e0a800;
     --warning-border-hover: #d39e00;
+    --danger-color: #dc3545;                  /* Danger/error red */
+    --danger-hover: #c82333;
+    --success-color: #28a745;                 /* Success green */
+    --success-hover: #218838;
 
-    --text-light: #ffffff;            /* Standard light text */
-    --text-muted: #e0e0e0;            /* Muted/hover text */
-    --bg-light: #f4f4f4;              /* Page background */
+    --text-light: #ffffff;                    /* Standard light text */
+    --text-muted: #e0e0e0;                    /* Muted/hover text */
+    --text-dark: #333333;                     /* Dark text for readability */
+    --bg-light: #f8f9fa;                      /* Page background - light gray */
+    --bg-white: #ffffff;                      /* Card/modal backgrounds */
+    --border-color: #dee2e6;                  /* Border color */
+    
+    /* Gray Scale Palette */
+    --gray-50: rgb(249, 250, 251);           /* Almost white */
+    --gray-100: rgb(243, 244, 246);          /* Very light gray */
+    --gray-200: rgb(229, 231, 235);          /* Light gray */
+    --gray-300: rgb(209, 213, 219);          /* Medium-light gray */
+    --gray-400: rgb(156, 163, 175);          /* Medium gray */
+    --gray-500: rgb(107, 114, 128);          /* Base gray */
+    --gray-600: rgb(75, 85, 99);             /* Medium-dark gray */
+    --gray-700: rgb(55, 65, 81);             /* Dark gray */
+    --gray-800: rgb(31, 41, 55);             /* Darker gray */
+    --gray-900: rgb(17, 24, 39);             /* Darkest gray */
 }
 
 /* ==========================================================================
-   GLOBAL BASE STYLES
+   GLOBAL BASE STYLES - Duke Blue Accents
    ========================================================================== */
 
 body {
     margin: 0;
     display: flex;
-    background-color: var(--bg-light) !important;
+    background-color: var(--gray-50) !important;
     font-family: 'Segoe UI', sans-serif !important;
+    color: var(--gray-800) !important;
 }
 
 h1, h2 {
-    color: var(--primary-color) !important;
+    color: var(--primary-color) !important; /* Duke Blue headings */
     font-weight: 600 !important;
 }
 
+h3, h4, h5, h6 {
+    color: var(--primary-color) !important; /* Duke Blue subheadings */
+    font-weight: 500 !important;
+}
+
 /* ==========================================================================
-   TABLE STYLES
+   TABLE STYLES - Duke Blue Theme
    ========================================================================== */
 
 thead.table-dark {
-    background-color: var(--primary-color) !important;
+    background-color: var(--primary-color) !important; /* Duke Blue */
+    color: var(--text-light) !important;
 }
 
 thead a {
@@ -47,56 +73,182 @@ thead a {
 
 thead a:hover {
     text-decoration: underline !important;
-    color: var(--text-muted) !important;
+    color: var(--gray-200) !important;
+}
+
+.table {
+    background-color: var(--bg-white) !important;
+    border-color: var(--gray-200) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: var(--gray-50) !important;
+}
+
+.table-bordered {
+    border-color: var(--gray-200) !important;
+}
+
+.table-bordered > tbody > tr > td,
+.table-bordered > thead > tr > th {
+    border-color: var(--gray-200) !important;
 }
 
 /* ==========================================================================
-   BUTTON STYLES
+   BUTTON STYLES - Duke Blue Primary Theme
    ========================================================================== */
 
 .btn-primary {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
 }
 
 .btn-primary:hover {
     background-color: var(--primary-hover) !important;
     border-color: var(--primary-hover) !important;
+    color: var(--text-light) !important;
+}
+
+.btn-secondary {
+    background-color: var(--primary-color) !important; /* Duke Blue */
+    border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
+}
+
+.btn-secondary:hover {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+    color: var(--text-light) !important;
 }
 
 .btn-success {
-    background-color: var(--accent-color) !important;
-    border-color: var(--accent-color) !important;
+    background-color: var(--primary-color) !important; /* Duke Blue */
+    border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
 }
 
 .btn-success:hover {
-    background-color: var(--accent-hover) !important;
-    border-color: var(--accent-hover) !important;
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+    color: var(--text-light) !important;
+}
+
+.btn-info {
+    background-color: var(--primary-color) !important; /* Duke Blue */
+    border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
+}
+
+.btn-info:hover {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+    color: var(--text-light) !important;
 }
 
 .btn-warning {
-    background-color: var(--warning-color) !important;
-    border-color: var(--warning-color) !important;
-    color: black !important;
+    background-color: var(--primary-color) !important; /* Duke Blue */
+    border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
 }
 
 .btn-warning:hover {
-    background-color: var(--warning-hover) !important;
-    border-color: var(--warning-border-hover) !important;
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+    color: var(--text-light) !important;
 }
 
-/* ==========================================================================
-   MODAL STYLES
-   ========================================================================== */
+/* Only danger/delete buttons use gray */
+.btn-danger {
+    background-color: var(--gray-400) !important;
+    border-color: var(--gray-400) !important;
+    color: var(--text-light) !important;
+}
 
-.modal-header {
+.btn-danger:hover {
+    background-color: var(--gray-500) !important;
+    border-color: var(--gray-500) !important;
+    color: var(--text-light) !important;
+}
+
+/* Outline buttons */
+.btn-outline-primary {
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+.btn-outline-primary:hover {
     background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
+}
+
+.btn-outline-secondary {
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
     color: var(--text-light) !important;
 }
 
 /* ==========================================================================
-   MESSAGES AND ALERTS
+   MODAL STYLES - Duke Blue Theme
    ========================================================================== */
+
+.modal-header {
+    background-color: var(--primary-color) !important; /* Duke Blue */
+    color: var(--text-light) !important;
+    border-bottom: 1px solid var(--primary-hover) !important;
+}
+
+.modal-content {
+    background-color: var(--bg-white) !important;
+    border: 1px solid var(--gray-200) !important;
+}
+
+.modal-body {
+    background-color: var(--bg-white) !important;
+}
+
+.modal-footer {
+    background-color: var(--gray-50) !important;
+    border-top: 1px solid var(--gray-200) !important;
+}
+
+/* ==========================================================================
+   MESSAGES AND ALERTS - Gray Theme
+   ========================================================================== */
+
+.alert {
+    border: 1px solid var(--gray-200) !important;
+}
+
+.alert-warning {
+    background-color: var(--gray-100) !important;
+    border-color: var(--gray-300) !important;
+    color: var(--gray-800) !important;
+}
+
+.alert-success {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    color: #155724 !important;
+}
+
+.alert-danger {
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+    color: #721c24 !important;
+}
+
+.alert-info {
+    background-color: var(--gray-100) !important;
+    border-color: var(--gray-300) !important;
+    color: var(--gray-800) !important;
+}
 
 #message.text-success {
     color: #198754 !important;
@@ -107,23 +259,24 @@ thead a:hover {
 }
 
 #message.text-info {
-    color: #0dcaf0 !important;
+    color: var(--gray-700) !important;
 }
 
 /* ==========================================================================
-   SIDEBAR STYLES
+   SIDEBAR STYLES - Duke Blue Theme
    ========================================================================== */
 
 .sidebar {
     width: 240px !important;
     height: 100vh !important;
-    background-color: var(--primary-color) !important;
+    background-color: var(--primary-color) !important; /* Duke Blue RGB(0,48,135) */
     color: var(--text-light) !important;
     padding: 30px 20px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
     position: fixed !important;
+    border-right: 1px solid var(--primary-hover) !important;
 }
 
 .logo img {
@@ -143,7 +296,7 @@ thead a:hover {
 }
 
 .nav-item a {
-    color: var(--text-light) !important;
+    color: var(--gray-200) !important;
     text-decoration: none !important;
     font-size: 1.15rem !important;
     font-weight: 500 !important;
@@ -157,12 +310,12 @@ thead a:hover {
 
 .nav-item a.active,
 .nav-item a:hover {
-    background-color: #222 !important;
+    background-color: var(--primary-hover) !important; /* Darker Duke Blue */
     color: var(--text-light) !important;
 }
 
 .logout-btn {
-    background-color: #6c757d !important;
+    background-color: var(--primary-hover) !important; /* Darker Duke Blue */
     color: var(--text-light) !important;
     border: none !important;
     padding: 10px 20px !important;
@@ -174,17 +327,19 @@ thead a:hover {
 }
 
 .logout-btn:hover {
-    background-color: #5a6268 !important;
+    background-color: rgb(0, 25, 80) !important; /* Even darker Duke Blue */
 }
 
 .main-content {
     margin-left: 260px !important;
     padding: 30px !important;
     width: 100% !important;
+    background-color: var(--gray-50) !important;
+    min-height: 100vh !important;
 }
 
 /* ==========================================================================
-   PAGINATION STYLES 
+   PAGINATION STYLES - Duke Blue Theme
    ========================================================================== */
 
 #pagination {
@@ -198,11 +353,13 @@ thead a:hover {
 #pagination .btn {
     border-radius: 6px !important;
     padding: 6px 12px !important;
+    border: 1px solid var(--gray-300) !important;
 }
 
 #pagination .btn-primary {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
+    color: var(--text-light) !important;
 }
 
 #pagination .btn-primary:hover {
@@ -211,23 +368,23 @@ thead a:hover {
 }
 
 #pagination .btn-outline-primary {
-    color: var(--primary-color) !important;
+    color: var(--primary-color) !important; /* Duke Blue text */
     border-color: var(--primary-color) !important;
+    background-color: var(--bg-white) !important;
 }
 
 #pagination .btn-outline-primary:hover {
     background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
     color: var(--text-light) !important;
 }
 
 #pagination .btn.disabled,
 #pagination .btn:disabled {
-    background-color: #e9ecef !important;
-    border-color: #dee2e6 !important;
-    color: #6c757d !important;
+    color: var(--gray-400) !important;
+    background-color: var(--gray-100) !important;
+    border-color: var(--gray-200) !important;
     cursor: not-allowed !important;
-    opacity: 0.65 !important;
-    pointer-events: none !important;
 }
 
 /* ==========================================================================
@@ -235,28 +392,63 @@ thead a:hover {
    ========================================================================== */
 
 .stat-card {
-    cursor: pointer !important;
-    transition: transform 0.2s ease !important;
+    background: var(--bg-white) !important;
+    border: 2px solid var(--gray-200) !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
 }
 
 .stat-card:hover {
     transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(0,48,135,0.15) !important; /* Duke Blue shadow */
+    border-color: var(--primary-color) !important;
 }
 
-.stat-card.primary {
-    border-left: 4px solid var(--primary-color) !important;
+.stat-card .stat-icon {
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    color: var(--text-light) !important;
+    background: var(--primary-color) !important; /* Duke Blue */
+    padding: 0.5rem 1rem !important;
+    border-radius: 6px !important;
+    margin-bottom: 1rem !important;
+    display: inline-block !important;
+    letter-spacing: 0.5px !important;
 }
 
-.stat-card.success {
-    border-left: 4px solid var(--accent-color) !important;
+.stat-card.primary .stat-icon {
+    background: var(--primary-color) !important;
 }
 
-.stat-card.warning {
-    border-left: 4px solid var(--warning-color) !important;
+.stat-card.success .stat-icon {
+    background: var(--primary-color) !important; /* Duke Blue */
 }
 
-.stat-card.danger {
-    border-left: 4px solid #dc3545 !important;
+.stat-card.warning .stat-icon {
+    background: var(--primary-color) !important; /* Duke Blue */
+}
+
+.stat-card.danger .stat-icon {
+    background: var(--gray-500) !important; /* Only danger uses gray */
+}
+
+.stat-card h3 {
+    color: var(--primary-color) !important; /* Duke Blue text */
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.stat-card p {
+    color: var(--gray-600) !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    margin-bottom: 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
 }
 
 .chart-container {
@@ -266,62 +458,274 @@ thead a:hover {
 }
 
 /* ==========================================================================
-   ADDITIONAL REACT-SPECIFIC OVERRIDES
+   MISCELLANEOUS - Gray Theme
    ========================================================================== */
 
 .bg-light {
-    background-color: var(--bg-light) !important;
+    background-color: var(--gray-50) !important;
 }
 
 .container-fluid {
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
+    background-color: var(--gray-50) !important;
 }
 
-/* Ensure the React Router active link styling matches the original */
+.text-muted {
+    color: var(--gray-500) !important;
+}
+
+/* Active navigation item */
 .nav-item a.active {
-    background-color: #222 !important;
+    background-color: var(--primary-hover) !important; /* Darker Duke Blue */
     color: var(--text-light) !important;
 }
 
-/* Remove default React App styles */
-.App {
-    display: flex;
-    width: 100%;
-    min-height: 100vh;
+/* Connection status indicators with gray theme */
+.connection-status {
+    font-size: 0.8rem !important;
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 4px !important;
+    margin-left: 1rem !important;
+    font-weight: 600 !important;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.connection-status.connected {
+    background-color: var(--gray-600) !important;
+    color: white !important;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.connection-status.disconnected {
+    background-color: var(--gray-400) !important;
+    color: white !important;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+/* ==========================================================================
+   ACCESSIBILITY IMPROVEMENTS
+   ========================================================================== */
+
+/* Focus indicators for keyboard navigation */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: 2px solid var(--primary-color) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 48, 135, 0.25) !important;
 }
 
-.App-link {
-  color: #61dafb;
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --primary-color: rgb(0, 48, 135) !important;
+        --accent-color: var(--gray-800) !important;
+        --bg-light: #ffffff !important;
+        --text-dark: #000000 !important;
+    }
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Screen reader only content */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* ==========================================================================
+   DUKE BRANDING ENHANCEMENTS
+   ========================================================================== */
+
+/* Risk level badges */
+.risk-badge {
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.risk-badge.critical {
+    background-color: var(--danger-color) !important;
+    color: white !important;
+}
+
+.risk-badge.high {
+    background-color: var(--warning-color) !important;
+    color: var(--text-dark) !important;
+}
+
+.risk-badge.medium {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+.risk-badge.low {
+    background-color: var(--accent-color) !important;
+    color: white !important;
+}
+
+.risk-badge.safe {
+    background-color: var(--success-color) !important;
+    color: white !important;
+}
+
+/* AI panels */
+.ai-panel {
+    background: var(--bg-white) !important;
+    border: 1px solid var(--gray-200) !important;
+    border-radius: 8px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;
+}
+
+.ai-panel h4 {
+    color: var(--primary-color) !important; /* Duke Blue */
+    font-weight: 600 !important;
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.5rem !important;
+    border-bottom: 2px solid var(--primary-color) !important; /* Duke Blue border */
+}
+
+/* ==========================================================================
+   BUTTON ICONS - Bootstrap Icon Style
+   ========================================================================== */
+
+.btn-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.btn-icon::before {
+    font-family: "bootstrap-icons" !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    line-height: 1 !important;
+    vertical-align: -0.125em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Specific button icons */
+.btn-add::before {
+    content: "\f2c7" !important; /* plus-circle */
+}
+
+.btn-edit::before {
+    content: "\f4ca" !important; /* pencil-square */
+}
+
+.btn-delete::before {
+    content: "\f5ad" !important; /* trash */
+}
+
+.btn-ai::before {
+    content: "\f3eb" !important; /* cpu */
+}
+
+.btn-search::before {
+    content: "\f52a" !important; /* search */
+}
+
+.btn-upload::before {
+    content: "\f32f" !important; /* cloud-upload */
+}
+
+.btn-download::before {
+    content: "\f32e" !important; /* cloud-download */
+}
+
+.btn-refresh::before {
+    content: "\f1da" !important; /* arrow-clockwise */
+}
+
+.btn-save::before {
+    content: "\f4c7" !important; /* check-circle */
+}
+
+.btn-cancel::before {
+    content: "\f5e7" !important; /* x-circle */
+}
+
+.btn-info-icon::before {
+    content: "\f431" !important; /* info-circle */
+}
+
+.btn-warning-icon::before {
+    content: "\f33a" !important; /* exclamation-triangle */
+}
+
+.btn-danger-icon::before {
+    content: "\f5e7" !important; /* x-circle */
+}
+
+.btn-success-icon::before {
+    content: "\f26a" !important; /* check */
+}
+
+/* ==========================================================================
+   FORMS AND INPUTS - Gray Theme
+   ========================================================================== */
+
+.form-control {
+    border: 1px solid var(--gray-300) !important;
+    background-color: var(--bg-white) !important;
+    color: var(--gray-800) !important;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 48, 135, 0.25) !important;
+}
+
+.form-select {
+    border: 1px solid var(--gray-300) !important;
+    background-color: var(--bg-white) !important;
+    color: var(--gray-800) !important;
+}
+
+.form-select:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 48, 135, 0.25) !important;
+}
+
+.form-label {
+    color: var(--gray-700) !important;
+    font-weight: 500 !important;
+}
+
+/* ==========================================================================
+   CARDS AND PANELS - Gray Theme
+   ========================================================================== */
+
+.card {
+    background-color: var(--bg-white) !important;
+    border: 1px solid var(--gray-200) !important;
+    border-radius: 8px !important;
+}
+
+.card-header {
+    background-color: var(--gray-100) !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    color: var(--gray-800) !important;
+}
+
+.card-body {
+    background-color: var(--bg-white) !important;
 }

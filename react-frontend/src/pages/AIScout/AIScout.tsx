@@ -133,7 +133,7 @@ const AIScout: React.FC = () => {
             <div className="spinner-border text-primary mb-3" role="status">
               <span className="visually-hidden">Loading AI Scout...</span>
             </div>
-            <h5>🤖 Initializing SecureScout AI Engine...</h5>
+            <h5>Initializing SecureScout AI Engine...</h5>
           </div>
         </div>
       </div>
@@ -147,9 +147,9 @@ const AIScout: React.FC = () => {
         <div className="col-12">
           <div className="ai-header">
             <h1 className="ai-title">
-              🤖 SecureScout AI Dashboard
+              SecureScout AI Dashboard
               <span className={`connection-status ${wsConnected ? 'connected' : 'disconnected'}`}>
-                {wsConnected ? '🟢 Live' : '🔴 Offline'}
+                {wsConnected ? 'Live' : 'Offline'}
               </span>
             </h1>
             <p className="ai-subtitle">
@@ -164,7 +164,7 @@ const AIScout: React.FC = () => {
       <div className="row mb-4">
         <div className="col-md-3">
           <div className="stat-card threats">
-            <div className="stat-icon">🔍</div>
+            <div className="stat-icon">SCOUTS</div>
             <div className="stat-content">
               <h3>{dashboardData?.scouts_active || 0}/4</h3>
               <p>Active Scouts</p>
@@ -173,7 +173,7 @@ const AIScout: React.FC = () => {
         </div>
         <div className="col-md-3">
           <div className="stat-card blocks">
-            <div className="stat-icon">⚡</div>
+            <div className="stat-icon">THREATS</div>
             <div className="stat-content">
               <h3>{dashboardData?.threats_detected || 0}</h3>
               <p>Threats Detected</p>
@@ -182,7 +182,7 @@ const AIScout: React.FC = () => {
         </div>
         <div className="col-md-3">
           <div className="stat-card accuracy">
-            <div className="stat-icon">🎯</div>
+            <div className="stat-icon">ACCURACY</div>
             <div className="stat-content">
               <h3>{dashboardData?.accuracy || 0}%</h3>
               <p>Accuracy</p>
@@ -191,7 +191,7 @@ const AIScout: React.FC = () => {
         </div>
         <div className="col-md-3">
           <div className="stat-card auto-blocks">
-            <div className="stat-icon">🚫</div>
+            <div className="stat-icon">BLOCKED</div>
             <div className="stat-content">
               <h3>{dashboardData?.auto_blocks_count || 0}</h3>
               <p>Auto-Blocked</p>
@@ -204,7 +204,7 @@ const AIScout: React.FC = () => {
       <div className="row mb-4">
         <div className="col-md-6">
           <div className="ai-panel">
-            <h4>🔍 IP Risk Analysis</h4>
+            <h4>IP Risk Analysis</h4>
             <div className="ip-analyzer">
               <div className="input-group mb-3">
                 <input
@@ -214,7 +214,7 @@ const AIScout: React.FC = () => {
                   value={selectedIP}
                   onChange={(e) => setSelectedIP(e.target.value)}
                 />
-                <button className="btn btn-primary" onClick={analyzeIP}>
+                <button className="btn btn-primary btn-icon btn-search" onClick={analyzeIP}>
                   Analyze
                 </button>
               </div>
@@ -245,22 +245,22 @@ const AIScout: React.FC = () => {
 
         <div className="col-md-6">
           <div className="ai-panel">
-            <h4>📊 Scout Status</h4>
+            <h4>Scout Status</h4>
             <div className="scout-status">
               <div className="scout-item">
-                <span className="scout-name">🛡️ Threat Intelligence</span>
+                <span className="scout-name">Threat Intelligence</span>
                 <span className="badge bg-success">Active</span>
               </div>
               <div className="scout-item">
-                <span className="scout-name">🔍 Behavior Analysis</span>
+                <span className="scout-name">Behavior Analysis</span>
                 <span className="badge bg-success">Active</span>
               </div>
               <div className="scout-item">
-                <span className="scout-name">🌍 Geolocation Monitor</span>
+                <span className="scout-name">Geolocation Monitor</span>
                 <span className="badge bg-success">Active</span>
               </div>
               <div className="scout-item">
-                <span className="scout-name">📈 Risk Assessment</span>
+                <span className="scout-name">Risk Assessment</span>
                 <span className="badge bg-success">Active</span>
               </div>
             </div>
@@ -272,7 +272,7 @@ const AIScout: React.FC = () => {
       <div className="row">
         <div className="col-md-6">
           <div className="ai-panel">
-            <h4>🚨 Active Threats</h4>
+            <h4>Active Threats</h4>
             <div className="threat-list">
               {threats.length === 0 ? (
                 <div className="text-center text-muted py-4">
@@ -300,7 +300,7 @@ const AIScout: React.FC = () => {
 
         <div className="col-md-6">
           <div className="ai-panel">
-            <h4>⚠️ Behavioral Anomalies</h4>
+            <h4>Behavioral Anomalies</h4>
             <div className="anomaly-list">
               {anomalies.length === 0 ? (
                 <div className="text-center text-muted py-4">
@@ -332,7 +332,7 @@ const AIScout: React.FC = () => {
         <div className="row mt-4">
           <div className="col-12">
             <div className="ai-panel">
-              <h4>🤖 Recent Auto-Blocks</h4>
+              <h4>Recent Auto-Blocks</h4>
               <div className="table-responsive">
                 <table className="table table-sm">
                   <thead>
@@ -371,7 +371,7 @@ const AIScout: React.FC = () => {
         <div className="col-12">
           <div className="ai-footer">
             <p className="text-muted text-center">
-              🤖 SecureScout AI Engine - Continuously monitoring and protecting your network
+              SecureScout AI Engine - Continuously monitoring and protecting your network
               <br />
               <small>
                 Last updated: {dashboardData?.timestamp ? new Date(dashboardData.timestamp).toLocaleString() : 'Unknown'}

@@ -1,9 +1,9 @@
 .guardian-toggle-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgb(0, 48, 135); /* Duke Blue */
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px 16px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 48, 135, 0.2);
   position: relative;
   color: white;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -14,13 +14,13 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 
 .guardian-status {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .guardian-label {
@@ -29,18 +29,18 @@
   color: white;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
+/* Remove emoji from label */
 .guardian-label::before {
-  content: '🛡️';
-  font-size: 18px;
+  content: '';
 }
 
 .toggle-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* Toggle Switch Styles */
@@ -93,8 +93,8 @@
 }
 
 input:checked + .toggle-label {
-  background-color: #4CAF50;
-  border-color: #4CAF50;
+  background-color: rgb(0, 48, 135); /* Duke Blue when active */
+  border-color: rgb(0, 48, 135);
 }
 
 input:checked + .toggle-label .toggle-slider {
@@ -132,13 +132,14 @@ input:disabled + .toggle-label {
   font-size: 14px;
   color: white;
   font-weight: bold;
+  font-style: normal;
 }
 
 /* Status Indicators */
 .guardian-status-indicators {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .status-dot {
@@ -165,7 +166,7 @@ input:disabled + .toggle-label {
 }
 
 .status-text {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -180,8 +181,8 @@ input:disabled + .toggle-label {
 
 /* Messages */
 .guardian-message {
-  margin-top: 12px;
-  padding: 8px 12px;
+  margin-top: 8px;
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
@@ -216,7 +217,7 @@ input:disabled + .toggle-label {
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-  margin-top: 8px;
+  margin-top: 6px;
   max-height: 500px;
   overflow-y: auto;
   animation: fadeInUp 0.3s ease;
@@ -231,9 +232,9 @@ input:disabled + .toggle-label {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid #e0e0e0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgb(0, 48, 135); /* Duke Blue */
   color: white;
   border-radius: 12px 12px 0 0;
 }
@@ -248,10 +249,10 @@ input:disabled + .toggle-label {
   background: none;
   border: none;
   color: white;
-  font-size: 24px;
+  font-size: 20px;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -264,42 +265,72 @@ input:disabled + .toggle-label {
 }
 
 .info-content {
-  padding: 20px;
+  padding: 16px;
   max-height: 400px;
   overflow-y: auto;
+  font-size: 16px;
 }
 
 .info-section {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .info-section h5 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
+  margin: 0 0 8px 0;
+  font-size: 18px;
   font-weight: 600;
   color: #333;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid rgb(0, 48, 135); /* Duke Blue accent */
   padding-left: 12px;
 }
 
 .info-section p {
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   line-height: 1.6;
   color: #666;
+  font-size: 16px;
 }
 
 .info-section ul {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 16px;
   color: #666;
+  font-size: 16px;
 }
 
 .info-section li {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   line-height: 1.5;
+  font-size: 16px;
 }
 
-/* Risk Levels */
+/* Risk Levels - Minimalistic Style */
+.risk-levels-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.risk-levels-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.risk-levels-list li:last-child {
+  border-bottom: none;
+}
+
+.risk-levels-list strong {
+  color: rgb(0, 48, 135); /* Duke Blue for risk level labels */
+  font-weight: 600;
+  min-width: 75px;
+  display: inline-block;
+  font-size: 16px;
+}
+
+/* Keep existing risk levels section for backward compatibility */
 .risk-levels {
   display: flex;
   flex-direction: column;
@@ -368,7 +399,7 @@ input:disabled + .toggle-label {
   padding: 12px 16px;
   border-radius: 6px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
+  font-size: 15px;
   margin: 8px 0;
   border: 1px solid #333;
 }
@@ -377,8 +408,80 @@ input:disabled + .toggle-label {
   background: none;
   color: inherit;
   padding: 0;
+  font-size: 15px;
 }
 
+/* Info Grid Layout - Equal Distribution */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 16px;
+}
+
+.compact-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 1.4;
+}
+
+.compact-list li:last-child {
+  border-bottom: none;
+}
+
+.compact-list strong {
+  color: rgb(0, 48, 135); /* Duke Blue */
+  font-weight: 600;
+  min-width: 70px;
+  display: inline-block;
+}
+
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-item {
+  padding: 4px 0;
+  font-size: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-item strong {
+  color: rgb(0, 48, 135); /* Duke Blue */
+  font-weight: 600;
+  min-width: 70px;
+  display: inline-block;
+}
+
+.remaining-networks {
+  margin-top: 8px;
+}
+
+.setup-section {
+  grid-column: 1 / -1; /* Span full width */
+  margin-top: 8px;
+}
+
+/* Responsive adjustments */
 /* Responsive Design */
 @media (max-width: 768px) {
   .guardian-header {
@@ -403,6 +506,15 @@ input:disabled + .toggle-label {
   
   .info-content {
     padding: 16px;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .setup-section {
+    grid-column: 1;
   }
   
   .risk-item {

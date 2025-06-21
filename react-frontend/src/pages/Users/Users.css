@@ -3,6 +3,15 @@ h1, h2 {
   font-weight: 600;
 }
 
+/* Status Badge Styles - Duke Blue Theme */
+.badge.bg-success {
+  background-color: rgb(0, 48, 135) !important; /* Duke Blue for active status */
+}
+
+.badge.bg-secondary {
+  background-color: var(--gray-500, #6c757d) !important; /* Gray for inactive status */
+}
+
 .table-dark {
   background-color: var(--primary-color, #012169) !important;
 }

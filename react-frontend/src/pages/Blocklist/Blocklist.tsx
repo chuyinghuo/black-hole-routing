@@ -135,12 +135,12 @@ const Blocklist: React.FC = () => {
 
   const getRiskLevelIcon = (riskLevel: string) => {
     switch (riskLevel) {
-      case 'CRITICAL': return '🚫';
-      case 'HIGH': return '⚠️';
-      case 'MEDIUM': return '🔶';
-      case 'LOW': return '🔶';
-      case 'SAFE': return '✅';
-      default: return '❓';
+      case 'CRITICAL': return 'CRITICAL';
+      case 'HIGH': return 'HIGH';
+      case 'MEDIUM': return 'MEDIUM';
+      case 'LOW': return 'LOW';
+      case 'SAFE': return 'SAFE';
+      default: return 'UNKNOWN';
     }
   };
 
@@ -169,14 +169,13 @@ const Blocklist: React.FC = () => {
       
       if (errorData?.guardian_block && errorData?.can_override && !overrideGuardian) {
         // Show Guardian warning with override option
-        const riskIcon = getRiskLevelIcon(errorData.risk_level);
         const confidence = Math.round((errorData.confidence || 0) * 100);
         
         const userConfirmed = window.confirm(
-          `🛡️ GUARDIAN AI WARNING\n\n` +
-          `${riskIcon} Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n\n` +
-          `⚠️ WARNING: ${errorData.reason?.split('\n')[0] || 'This action may cause infrastructure damage'}\n\n` +
-          `🤔 Are you sure you want to proceed?\n` +
+          `GUARDIAN AI WARNING\n\n` +
+          `Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n\n` +
+          `WARNING: ${errorData.reason?.split('\n')[0] || 'This action may cause infrastructure damage'}\n\n` +
+          `Are you sure you want to proceed?\n` +
           `Click OK to override the Guardian and add this IP anyway.\n` +
           `Click Cancel to abort and review the AI analysis.`
         );
@@ -187,16 +186,16 @@ const Blocklist: React.FC = () => {
         } else {
           // User cancelled - show the detailed explanation
           setMessage(
-            `🛡️ Guardian Protection Active\n` +
-            `${riskIcon} Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n` +
-            `Action cancelled by user. Click the "🤖 AI" button for detailed analysis.`
+            `Guardian Protection Active\n` +
+            `Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n` +
+            `Action cancelled by user. Click the "AI Analysis" button for detailed analysis.`
           );
         }
       } else if (errorData?.guardian_block) {
         // Guardian blocked without override option
         setMessage(
-          `🛡️ Guardian Protection: ${errorData.reason}\n` +
-          `Risk Level: ${getRiskLevelIcon(errorData.risk_level)} ${errorData.risk_level}\n` +
+          `Guardian Protection: ${errorData.reason}\n` +
+          `Risk Level: ${errorData.risk_level}\n` +
           `This IP was blocked to prevent infrastructure damage.`
         );
       } else {
@@ -392,7 +391,7 @@ const Blocklist: React.FC = () => {
             <div className="mb-3">
               <button 
                 id="showFormBtn"
-                className="btn btn-primary me-2" 
+                className="btn btn-primary btn-icon btn-add me-2" 
                 onClick={() => setShowAddModal(true)}
               >
                 Add IP
@@ -409,7 +408,7 @@ const Blocklist: React.FC = () => {
                 />
                 <button 
                   type="button" 
-                  className="btn btn-secondary" 
+                  className="btn btn-secondary btn-icon btn-upload" 
                   onClick={() => document.getElementById('csvFile')?.click()}
                 >
                   Upload CSV
@@ -433,13 +432,13 @@ const Blocklist: React.FC = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={handleSearchKeyPress}
                   />
-                  <button className="btn btn-secondary" onClick={handleSearch}>Search</button>
+                  <button className="btn btn-secondary btn-icon btn-search" onClick={handleSearch}>Search</button>
                 </div>
               </div>
               <div className="text-end">
                 <button 
                   id="deleteSelected"
-                  className="btn btn-danger" 
+                  className="btn btn-danger btn-icon btn-delete" 
                   disabled={selectedIds.size === 0}
                   onClick={handleBulkDelete}
                 >
@@ -542,22 +541,22 @@ const Blocklist: React.FC = () => {
                       <td>
                         <button
                           type="button"
-                          className="btn btn-sm btn-info me-1"
+                          className="btn btn-sm btn-info btn-icon btn-ai me-1"
                           onClick={() => getAIExplanation(entry.ip_address)}
                           title="Get AI explanation about blocking this IP"
                         >
-                          🤖 AI
+                          AI Analysis
                         </button>
                         <button
                           type="button"
-                          className="btn btn-sm btn-warning updateBtn me-1"
+                          className="btn btn-sm btn-warning btn-icon btn-edit me-1"
                           onClick={() => fillEditForm(entry.id, entry.ip_address, entry.expires_at, entry.comment)}
                         >
                           Update
                         </button>
                         <button
                           type="button"
-                          className="btn btn-sm btn-danger"
+                          className="btn btn-sm btn-danger btn-icon btn-delete"
                           onClick={() => handleDelete(entry.id)}
                         >
                           Delete
@@ -646,7 +645,7 @@ const Blocklist: React.FC = () => {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-success">➕ Add IP</button>
+                  <button type="submit" className="btn btn-success btn-icon btn-add">Add IP</button>
                 </div>
               </form>
             </div>
@@ -704,7 +703,7 @@ const Blocklist: React.FC = () => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+                <button type="submit" className="btn btn-primary btn-icon btn-save">Save Changes</button>
               </div>
             </form>
           </div>
@@ -719,7 +718,7 @@ const Blocklist: React.FC = () => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title" id="aiExplanationModalLabel">
-                  🤖 AI Analysis: {currentExplanation.ip}
+                  AI Analysis: {currentExplanation.ip}
                 </h5>
                 <button type="button" className="btn-close" onClick={() => setShowExplanationModal(false)}></button>
               </div>
@@ -753,7 +752,7 @@ const Blocklist: React.FC = () => {
                     {/* AI Explanation */}
                     <div className="card">
                       <div className="card-header">
-                        <h6 className="mb-0">🧠 AI-Powered Impact Analysis</h6>
+                        <h6 className="mb-0">AI-Powered Impact Analysis</h6>
                       </div>
                       <div className="card-body">
                         <pre style={{ 
@@ -773,7 +772,7 @@ const Blocklist: React.FC = () => {
                     {currentExplanation.reasons && currentExplanation.reasons.length > 0 && (
                       <div className="card mt-3">
                         <div className="card-header">
-                          <h6 className="mb-0">🔍 Detection Details</h6>
+                          <h6 className="mb-0">Detection Details</h6>
                         </div>
                         <div className="card-body">
                           <ul className="list-group list-group-flush">
@@ -790,7 +789,7 @@ const Blocklist: React.FC = () => {
                 )}
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowExplanationModal(false)}>
+                <button type="button" className="btn btn-secondary btn-icon btn-cancel" onClick={() => setShowExplanationModal(false)}>
                   Close
                 </button>
               </div>

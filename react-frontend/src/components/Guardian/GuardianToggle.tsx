@@ -13,10 +13,11 @@ interface GuardianToggleProps {
 }
 
 const GuardianToggle: React.FC<GuardianToggleProps> = ({ onStatusChange }) => {
+  const [enabled, setEnabled] = useState(false);
   const [status, setStatus] = useState<GuardianStatus>({
     available: false,
-    enabled: false,
-    guardian_initialized: false
+    guardian_initialized: false,
+    enabled: false
   });
   const [loading, setLoading] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
@@ -65,17 +66,6 @@ const GuardianToggle: React.FC<GuardianToggleProps> = ({ onStatusChange }) => {
     }
   };
 
-  const getRiskBadge = (level: string) => {
-    const badges = {
-      'CRITICAL': '🚫',
-      'HIGH': '⚠️',
-      'MEDIUM': '🔶',
-      'LOW': '🔶',
-      'SAFE': '✅'
-    };
-    return badges[level as keyof typeof badges] || '❓';
-  };
-
   if (loading) {
     return (
       <div className="guardian-toggle-container">
@@ -88,7 +78,7 @@ const GuardianToggle: React.FC<GuardianToggleProps> = ({ onStatusChange }) => {
     <div className="guardian-toggle-container">
       <div className="guardian-header">
         <div className="guardian-status">
-          <span className="guardian-label">IP Guardian</span>
+          <span className="guardian-label">Guardian Protection</span>
           <div className="toggle-group">
             <div className={`toggle-switch ${!status.available ? 'disabled' : ''}`}>
               <input
@@ -105,9 +95,9 @@ const GuardianToggle: React.FC<GuardianToggleProps> = ({ onStatusChange }) => {
             <button
               className="info-circle"
               onClick={() => setShowInfo(!showInfo)}
-              title="Learn about IP Guardian"
+              title="Learn about Guardian"
             >
-              <span className="info-icon">ℹ️</span>
+              <span className="info-icon">i</span>
             </button>
           </div>
         </div>
@@ -129,91 +119,72 @@ const GuardianToggle: React.FC<GuardianToggleProps> = ({ onStatusChange }) => {
       {showInfo && (
         <div className="guardian-info-panel">
           <div className="info-header">
-            <h4>🛡️ IP Guardian Protection System</h4>
+            <h4>Guardian Protection System</h4>
+            <p className="text-muted">
+              AI-powered protection against blocking critical infrastructure
+            </p>
             <button className="close-info" onClick={() => setShowInfo(false)}>×</button>
           </div>
           
           <div className="info-content">
-            <div className="info-section">
-              <h5>🎯 What it does:</h5>
-              <p>AI-powered agent that prevents you from accidentally blocking critical infrastructure that could cause network outages.</p>
-            </div>
-
-            <div className="info-section">
-              <h5>🛡️ Protection Levels:</h5>
-              <div className="risk-levels">
-                <div className="risk-item">
-                  <span className="risk-badge">{getRiskBadge('CRITICAL')}</span>
-                  <span className="risk-text"><strong>CRITICAL:</strong> Do not block - would cause severe infrastructure damage</span>
-                </div>
-                <div className="risk-item">
-                  <span className="risk-badge">{getRiskBadge('HIGH')}</span>
-                  <span className="risk-text"><strong>HIGH:</strong> Manual review required before blocking</span>
-                </div>
-                <div className="risk-item">
-                  <span className="risk-badge">{getRiskBadge('MEDIUM')}</span>
-                  <span className="risk-text"><strong>MEDIUM:</strong> Proceed with caution, monitor for impact</span>
-                </div>
-                <div className="risk-item">
-                  <span className="risk-badge">{getRiskBadge('SAFE')}</span>
-                  <span className="risk-text"><strong>SAFE:</strong> No significant risks detected</span>
-                </div>
+            <div className="info-grid">
+              <div className="info-column">
+                <h5>Risk Levels:</h5>
+                <ul className="risk-levels-list">
+                  <li><strong>CRITICAL:</strong> DNS, localhost</li>
+                  <li><strong>HIGH:</strong> Important services</li>
+                  <li><strong>MEDIUM:</strong> Moderate risk</li>
+                  <li><strong>LOW:</strong> Low risk</li>
+                  <li><strong>SAFE:</strong> Safe to block</li>
+                </ul>
+                
+                <h5>Protected Networks:</h5>
+                <ul className="compact-list">
+                  <li><strong>DNS:</strong> Google, Cloudflare, OpenDNS</li>
+                  <li><strong>Private:</strong> 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16</li>
+                  <li><strong>Cloud:</strong> AWS, Azure, Cloudflare ranges</li>
+                </ul>
               </div>
-            </div>
-
-            <div className="info-section">
-              <h5>🔒 Protected Networks:</h5>
-              <ul>
-                <li><strong>DNS Servers:</strong> Google (8.8.8.8), Cloudflare (1.1.1.1), OpenDNS</li>
-                <li><strong>Private Networks:</strong> 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16</li>
-                <li><strong>Cloud Providers:</strong> AWS, Cloudflare, Azure ranges</li>
-                <li><strong>Development:</strong> GitHub, localhost, link-local</li>
-                <li><strong>Large Subnets:</strong> Networks affecting 1000+ IPs</li>
-              </ul>
-            </div>
-
-            <div className="info-section">
-              <h5>🤖 AI Features:</h5>
-              <ul>
-                <li>Real-time threat intelligence analysis</li>
-                <li>Geolocation and provider verification</li>
-                <li>Network impact assessment</li>
-                <li>Historical pattern learning</li>
-                <li>Context-aware bulk operation protection</li>
-              </ul>
-            </div>
-
-            <div className="info-section">
-              <h5>📊 Status Information:</h5>
-              <div className="status-info">
-                <div className="status-row">
-                  <span>Available:</span>
-                  <span className={status.available ? 'status-yes' : 'status-no'}>
-                    {status.available ? '✅ Yes' : '❌ No (Install dependencies)'}
-                  </span>
+              
+              <div className="info-column">
+                <h5>Features:</h5>
+                <ul className="compact-list">
+                  <li>Real-time analysis</li>
+                  <li>Impact assessment</li>
+                  <li>Business evaluation</li>
+                  <li>Security alternatives</li>
+                  <li>Detailed explanations</li>
+                </ul>
+                
+                <h5>Status:</h5>
+                <div className="status-grid">
+                  <div className="status-item">
+                    <strong>Available:</strong> {status.available ? 'Yes' : 'No'}
+                  </div>
+                  <div className="status-item">
+                    <strong>Initialized:</strong> {status.guardian_initialized ? 'Yes' : 'No'}
+                  </div>
+                  <div className="status-item">
+                    <strong>Protection:</strong> {status.enabled ? 'Active' : 'Inactive'}
+                  </div>
                 </div>
-                <div className="status-row">
-                  <span>Initialized:</span>
-                  <span className={status.guardian_initialized ? 'status-yes' : 'status-no'}>
-                    {status.guardian_initialized ? '✅ Yes' : '⚠️ No'}
-                  </span>
-                </div>
-                <div className="status-row">
-                  <span>Protection:</span>
-                  <span className={status.enabled ? 'status-active' : 'status-inactive'}>
-                    {status.enabled ? '🛡️ Active' : '💤 Inactive'}
-                  </span>
+                
+                <div className="remaining-networks">
+                  <ul className="compact-list">
+                    <li><strong>Development:</strong> GitHub, localhost</li>
+                    <li><strong>Large subnets:</strong> Networks affecting 1000+ IPs</li>
+                  </ul>
                 </div>
               </div>
             </div>
 
             {!status.available && (
-              <div className="info-section">
-                <h5>⚙️ Setup Instructions:</h5>
+              <div className="info-section setup-section">
+                <h5>Setup:</h5>
                 <div className="setup-code">
                   <code>pip install -r ai-scout/requirements-ai.txt</code>
                 </div>
-                <p>Install the required AI dependencies to enable Guardian protection.</p>
+                <p>Install AI dependencies to enable Guardian protection.</p>
               </div>
             )}
           </div>

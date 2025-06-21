@@ -228,8 +228,8 @@ const Safelist: React.FC = () => {
 
             <div className="mb-3">
               <button 
-                id="showFormBtn" 
-                className="btn btn-primary me-2" 
+                id="showFormBtn"
+                className="btn btn-primary btn-icon btn-add me-2" 
                 onClick={() => setShowAddModal(true)}
               >
                 Add IP
@@ -247,7 +247,7 @@ const Safelist: React.FC = () => {
                 />
                 <button 
                   type="button" 
-                  className="btn btn-secondary" 
+                  className="btn btn-secondary btn-icon btn-upload" 
                   onClick={() => document.getElementById('csvFile')?.click()}
                 >
                   Upload CSV
@@ -273,13 +273,13 @@ const Safelist: React.FC = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={handleSearchKeyPress}
                   />
-                  <button className="btn btn-secondary" onClick={searchIP}>Search</button>
+                  <button className="btn btn-secondary btn-icon btn-search" onClick={searchIP}>Search</button>
                 </div>
               </div>
               <div className="text-end">
                 <button 
-                  id="deleteSelected" 
-                  className="btn btn-danger" 
+                  id="deleteSelected"
+                  className="btn btn-danger btn-icon btn-delete" 
                   disabled={selectedIds.size === 0}
                   onClick={handleBulkDelete}
                 >
@@ -358,14 +358,16 @@ const Safelist: React.FC = () => {
                     <td>{entry.expires_at ? formatDate(entry.expires_at) : ''}</td>
                     <td>{entry.duration ? parseFloat(entry.duration.toString()).toFixed(2) : ''}</td>
                     <td>
-                      <button 
-                        className="btn btn-sm btn-warning updateBtn me-1" 
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-warning btn-icon btn-edit me-1"
                         onClick={() => fillUpdateForm(entry)}
                       >
                         Update
                       </button>
-                      <button 
-                        className="btn btn-sm btn-danger" 
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger btn-icon btn-delete"
                         onClick={() => handleDelete(entry.id)}
                       >
                         Delete
@@ -430,7 +432,7 @@ const Safelist: React.FC = () => {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-success">➕ Add IP</button>
+                  <button type="submit" className="btn btn-success btn-icon btn-add">Add IP</button>
                 </div>
               </form>
             </div>
@@ -484,7 +486,7 @@ const Safelist: React.FC = () => {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-primary btn-icon btn-save">Save Changes</button>
                 </div>
               </form>
             </div>
