@@ -3,8 +3,8 @@
    ========================================================================== */
 
 :root {
-    --primary-color: rgb(0, 48, 135);         /* Duke Blue RGB(0, 48, 135) */
-    --primary-hover: rgb(0, 35, 100);         /* Darker Duke Blue for hover */
+    --primary-color: #001a57;                 /* Duke Blue #001a57 */
+    --primary-hover: #001344;                 /* Darker Duke Blue for hover */
     --accent-color: rgb(108, 117, 125);       /* Medium Gray */
     --accent-hover: rgb(90, 98, 104);         /* Darker Medium Gray */
     --warning-color: #ffc107;                 /* Warning (yellow) */
@@ -269,7 +269,7 @@ thead a:hover {
 .sidebar {
     width: 240px !important;
     height: 100vh !important;
-    background-color: var(--primary-color) !important; /* Duke Blue RGB(0,48,135) */
+    background-color: var(--primary-color) !important; /* Duke Blue #001a57 */
     color: var(--text-light) !important;
     padding: 30px 20px !important;
     display: flex !important;
@@ -403,7 +403,7 @@ thead a:hover {
 
 .stat-card:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 4px 16px rgba(0,48,135,0.15) !important; /* Duke Blue shadow */
+    box-shadow: 0 4px 16px rgba(0, 26, 87, 0.15) !important; /* Duke Blue shadow */
     border-color: var(--primary-color) !important;
 }
 
@@ -507,13 +507,13 @@ thead a:hover {
 .form-select:focus {
     outline: 2px solid var(--primary-color) !important;
     outline-offset: 2px !important;
-    box-shadow: 0 0 0 0.2rem rgba(0, 48, 135, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 26, 87, 0.25) !important;
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
     :root {
-        --primary-color: rgb(0, 48, 135) !important;
+        --primary-color: #001a57 !important;
         --accent-color: var(--gray-800) !important;
         --bg-light: #ffffff !important;
         --text-dark: #000000 !important;
@@ -689,7 +689,7 @@ thead a:hover {
 
 .form-control:focus {
     border-color: var(--primary-color) !important;
-    box-shadow: 0 0 0 0.2rem rgba(0, 48, 135, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 26, 87, 0.25) !important;
 }
 
 .form-select {
@@ -700,7 +700,7 @@ thead a:hover {
 
 .form-select:focus {
     border-color: var(--primary-color) !important;
-    box-shadow: 0 0 0 0.2rem rgba(0, 48, 135, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 26, 87, 0.25) !important;
 }
 
 .form-label {

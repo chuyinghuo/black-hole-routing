@@ -113,6 +113,14 @@ def create_app():
         else:
             return send_from_directory(STATIC_DIR, filename)
 
+    # Serve images from React build directory
+    @app.route('/images/<path:filename>')
+    def serve_images(filename):
+        if REACT_BUILD_DIR.exists():
+            return send_from_directory(REACT_BUILD_DIR / 'images', filename)
+        else:
+            return send_from_directory(STATIC_DIR / 'images', filename)
+
     # Handle React Router routes (catch-all for frontend routes)
     @app.route('/<path:path>')
     def serve_react_app(path):

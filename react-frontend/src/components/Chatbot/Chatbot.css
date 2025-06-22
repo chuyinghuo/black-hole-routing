@@ -3,12 +3,12 @@
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background: rgb(0, 48, 135); /* Duke Blue */
+  background: #001a57; /* Duke Blue */
   color: white;
   border-radius: 50px;
   padding: 12px 20px;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 48, 135, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 26, 87, 0.3);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -19,9 +19,9 @@
 }
 
 .chatbot-toggle:hover {
-  background: rgb(0, 40, 115);
+  background: #001344;
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(0, 48, 135, 0.4);
+  box-shadow: 0 6px 25px rgba(0, 26, 87, 0.4);
 }
 
 .chatbot-toggle i {
@@ -47,7 +47,7 @@
 
 /* Header */
 .chatbot-header {
-  background: rgb(0, 48, 135); /* Duke Blue */
+  background: #001a57; /* Duke Blue */
   color: white;
   padding: 16px;
   display: flex;
@@ -124,7 +124,7 @@
 }
 
 .user-message .message-content {
-  background: rgb(0, 48, 135); /* Duke Blue */
+  background: #001a57; /* Duke Blue */
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -215,8 +215,8 @@
 }
 
 .input-container textarea:focus {
-  border-color: rgb(0, 48, 135); /* Duke Blue */
-  box-shadow: 0 0 0 2px rgba(0, 48, 135, 0.2);
+  border-color: #001a57; /* Duke Blue */
+  box-shadow: 0 0 0 2px rgba(0, 26, 87, 0.2);
 }
 
 .input-container textarea:disabled {
@@ -225,7 +225,7 @@
 }
 
 .send-button {
-  background: rgb(0, 48, 135); /* Duke Blue */
+  background: #001a57; /* Duke Blue */
   color: white;
   border: none;
   width: 40px;
@@ -240,7 +240,7 @@
 }
 
 .send-button:hover:not(:disabled) {
-  background: rgb(0, 40, 115);
+  background: #001344;
   transform: scale(1.05);
 }
 
@@ -277,9 +277,9 @@
 }
 
 .example-question:hover {
-  border-color: rgb(0, 48, 135); /* Duke Blue */
-  color: rgb(0, 48, 135);
-  background: rgba(0, 48, 135, 0.05);
+  border-color: #001a57; /* Duke Blue */
+  color: #001a57;
+  background: rgba(0, 26, 87, 0.05);
 }
 
 /* Scrollbar Styling */

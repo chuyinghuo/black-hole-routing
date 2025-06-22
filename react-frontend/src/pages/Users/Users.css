@@ -5,7 +5,7 @@ h1, h2 {
 
 /* Status Badge Styles - Duke Blue Theme */
 .badge.bg-success {
-  background-color: rgb(0, 48, 135) !important; /* Duke Blue for active status */
+  background-color: #001a57 !important; /* Duke Blue for active status */
 }
 
 .badge.bg-secondary {
