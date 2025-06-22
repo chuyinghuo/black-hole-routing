@@ -309,6 +309,9 @@ input:disabled + .toggle-label {
   list-style: none;
   padding: 0;
   margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 .risk-levels-list li {

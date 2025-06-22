@@ -13,7 +13,6 @@ interface GuardianToggleProps {
 }
 
 const GuardianToggle: React.FC<GuardianToggleProps> = ({ onStatusChange }) => {
-  const [enabled, setEnabled] = useState(false);
   const [status, setStatus] = useState<GuardianStatus>({
     available: false,
     guardian_initialized: false,

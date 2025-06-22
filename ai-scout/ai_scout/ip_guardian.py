@@ -249,7 +249,7 @@ class IPGuardianAgent:
                 analysis_time=datetime.now(),
                 geolocation=geo_analysis.get("geo_data") if geo_analysis else None,
                 reputation_data=reputation_analysis.get("reputation_data") if reputation_analysis else None,
-                network_info={"size": ip_obj.num_addresses, "network": str(ip_obj)}
+                network_info={"size": ip_obj.num_addresses, "network": str(ip_obj), "network_analysis": size_risk.get("network_analysis") if size_risk else None}
             )
             
             # Cache the analysis (skip if Redis not available)
@@ -283,56 +283,282 @@ class IPGuardianAgent:
     def _check_critical_networks(self, ip_obj) -> List[str]:
         """Check if IP is in critical network ranges"""
         reasons = []
-        
-        for critical_network in self.critical_networks:
-            try:
-                critical_net = ipaddress.ip_network(critical_network)
-                if ip_obj.overlaps(critical_net):
-                    reasons.append(f"CRITICAL: Overlaps with essential network {critical_network}")
-                    
-                    # Additional specific checks
-                    if str(critical_net).startswith("127."):
-                        reasons.append("CRITICAL: Localhost/loopback network - would break local services")
-                    elif str(critical_net).startswith(("10.", "172.16.", "192.168.")):
-                        reasons.append("CRITICAL: Private network range - would block internal infrastructure")
-                    elif "8.8.8" in str(critical_net):
-                        reasons.append("CRITICAL: Google DNS servers - would break internet connectivity")
-                    elif "1.1.1" in str(critical_net):
-                        reasons.append("CRITICAL: Cloudflare DNS - would break internet connectivity")
+        try:
+            # Check for specific critical IPs first
+            ip_str = str(ip_obj)
+            
+            # Google DNS servers
+            if ip_str in ["8.8.8.8", "8.8.4.4"]:
+                reasons.append("Critical: Google DNS server detected")
+                reasons.append("Critical infrastructure: This is a public DNS server used by millions")
+                return reasons
+            
+            # Cloudflare DNS servers
+            if ip_str in ["1.1.1.1", "1.0.0.1"]:
+                reasons.append("Critical: Cloudflare DNS server detected")
+                reasons.append("Critical infrastructure: This is a public DNS server used globally")
+                return reasons
+            
+            # Localhost/loopback
+            if ip_str in ["127.0.0.1", "::1"] or ip_str.startswith("127."):
+                reasons.append("Critical: Localhost/loopback address detected")
+                reasons.append("Critical: Would break local system communication")
+                return reasons
+            
+            # Check for private network ranges
+            if ip_obj.is_private:
+                reasons.append("Critical: Private network address detected")
+                reasons.append("Critical: Would affect internal network communication")
+                return reasons
+            
+            # Check against configured critical networks
+            for critical_network in self.critical_networks:
+                try:
+                    critical_net = ipaddress.ip_network(critical_network)
+                    if ip_obj.overlaps(critical_net):
+                        reasons.append(f"Critical: Overlaps with essential network {critical_network}")
                         
-            except ValueError:
-                continue
-                
+                        # Add specific explanations for well-known networks
+                        if str(critical_net).startswith("127."):
+                            reasons.append("Critical: Localhost/loopback network - would break local services")
+                        elif str(critical_net).startswith("10.") or str(critical_net).startswith("192.168.") or str(critical_net).startswith("172."):
+                            reasons.append("Critical: Private network - would break internal communication")
+                        elif "8.8.8" in str(critical_net):
+                            reasons.append("Critical: Google DNS infrastructure")
+                        elif "1.1.1" in str(critical_net):
+                            reasons.append("Critical: Cloudflare DNS infrastructure")
+                        
+                except ipaddress.AddressValueError:
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Critical network check failed: {str(e)}")
+            
         return reasons
     
     def _analyze_network_size(self, ip_obj) -> Optional[Dict]:
-        """Analyze the size of the network being blocked"""
-        num_addresses = ip_obj.num_addresses
+        """Analyze the size and scope of the network being blocked"""
+        try:
+            reasons = []
+            risk_score = 0.1
+            
+            if hasattr(ip_obj, 'num_addresses'):
+                # It's a network/subnet
+                num_addresses = ip_obj.num_addresses
+                network_size = ip_obj.prefixlen if hasattr(ip_obj, 'prefixlen') else None
+                
+                # Calculate percentage of total IPv4/IPv6 space
+                if ip_obj.version == 4:
+                    total_ipv4_addresses = 2**32  # ~4.3 billion
+                    percentage = (num_addresses / total_ipv4_addresses) * 100
+                    address_space = "IPv4"
+                else:  # IPv6
+                    total_ipv6_addresses = 2**128  # Massive number
+                    percentage = (num_addresses / total_ipv6_addresses) * 100
+                    address_space = "IPv6"
+                
+                # Detailed impact analysis
+                impact_analysis = self._calculate_blocking_impact(num_addresses, percentage, address_space, network_size or 32)
+                
+                # Categorize based on network size
+                if num_addresses >= 16777216:  # /8 or larger - extremely dangerous
+                    reasons.append(f"Critical subnet: Contains {num_addresses:,} IP addresses")
+                    reasons.append(f"Massive scope: {impact_analysis['scope_description']}")
+                    risk_score = 0.95
+                elif num_addresses >= 1048576:  # /12 network
+                    reasons.append(f"High risk subnet: Contains {num_addresses:,} IP addresses")
+                    reasons.append(f"Major scope: {impact_analysis['scope_description']}")
+                    risk_score = 0.8
+                elif num_addresses >= 65536:  # /16 network
+                    reasons.append(f"Medium risk subnet: Contains {num_addresses:,} IP addresses")
+                    reasons.append(f"Significant scope: {impact_analysis['scope_description']}")
+                    risk_score = 0.7
+                elif num_addresses > 4096:  # More than 4096 IPs
+                    reasons.append(f"Moderate scope: {impact_analysis['scope_description']}")
+                    risk_score = 0.6
+                elif num_addresses > 256:  # More than 256 IPs
+                    reasons.append(f"📦 Subnet blocking {num_addresses:,} IP addresses")
+                    reasons.append(f"Subnet block: Contains {num_addresses:,} IP addresses")
+                    reasons.append(f"Small scope: {impact_analysis['scope_description']}")
+                    risk_score = 0.5
+                elif num_addresses > 1:  # Small subnet
+                    reasons.append(f"📦 Subnet blocking {num_addresses:,} IP addresses")
+                    reasons.append(f"Small subnet: Contains {num_addresses:,} IP addresses")
+                    reasons.append(f"Minimal scope: {impact_analysis['scope_description']}")
+                    risk_score = 0.2
+                else:
+                    # Single IP - no need to show current blocklist count
+                    reasons.append(f"Single IP address")
+                    risk_score = 0.1
+                
+                return {
+                    "reasons": reasons,
+                    "risk_score": risk_score,
+                    "network_analysis": {
+                        "num_addresses": num_addresses,
+                        "percentage_of_internet": percentage,
+                        "address_space": address_space,
+                        "network_size": network_size,
+                        "impact_analysis": impact_analysis
+                    }
+                }
+            else:
+                # Single IP address
+                if ip_obj.version == 4:
+                    percentage = (1 / (2**32)) * 100
+                    address_space = "IPv4"
+                else:
+                    percentage = (1 / (2**128)) * 100
+                    address_space = "IPv6"
+                
+                impact_analysis = self._calculate_blocking_impact(1, percentage, address_space, 32 if ip_obj.version == 4 else 128)
+                
+                # Get current blocked IP count from database for context
+                try:
+                    from models import Blocklist
+                    current_blocked_count = Blocklist.query.count()
+                    reasons.append(f"Single IP address")
+                except Exception:
+                    reasons.append(f"Single {address_space} address")
+                
+                reasons.append(f"Minimal scope: {impact_analysis['scope_description']}")
+                
+                return {
+                    "reasons": reasons,
+                    "risk_score": 0.1,
+                    "network_analysis": {
+                        "num_addresses": 1,
+                        "percentage_of_internet": percentage,
+                        "address_space": address_space,
+                        "network_size": 32 if ip_obj.version == 4 else 128,
+                        "impact_analysis": impact_analysis
+                    }
+                }
+                
+        except Exception as e:
+            logger.error(f"Network size analysis failed: {str(e)}")
+            return None
+
+    def _calculate_blocking_impact(self, num_addresses: int, percentage: float, address_space: str, network_size: int) -> Dict:
+        """Calculate the real-world impact of blocking this many IP addresses"""
         
-        if num_addresses == 1:
-            return None  # Single IP is generally safe
+        # Estimate potential users affected (rough calculation)
+        # Assume average of 2-4 users per IP for residential, 10-100 for business networks
+        estimated_users_min = num_addresses * 2
+        estimated_users_max = num_addresses * 50
         
-        reasons = []
-        risk_score = 0.0
+        # Categorize the scope
+        if num_addresses >= 16777216:  # /8 network or larger
+            scope_level = "CATASTROPHIC"
+            scope_description = f"Entire /8 network ({num_addresses:,} IPs) - would affect major ISPs or entire countries"
+            user_impact = f"Could affect {estimated_users_min//1000000}-{estimated_users_max//1000000} million users"
+        elif num_addresses >= 1048576:  # /12 network
+            scope_level = "MASSIVE"
+            scope_description = f"Large ISP network block ({num_addresses:,} IPs) - would affect major service providers"
+            user_impact = f"Could affect {estimated_users_min//1000000}-{estimated_users_max//1000000} million users"
+        elif num_addresses >= 65536:  # /16 network
+            scope_level = "MAJOR"
+            scope_description = f"Regional ISP or large organization network ({num_addresses:,} IPs)"
+            user_impact = f"Could affect {estimated_users_min//1000}-{estimated_users_max//1000} thousand users"
+        elif num_addresses >= 4096:  # /20 network
+            scope_level = "SIGNIFICANT"
+            scope_description = f"Medium business or local ISP network ({num_addresses:,} IPs)"
+            user_impact = f"Could affect {estimated_users_min//1000}-{estimated_users_max//1000} thousand users"
+        elif num_addresses >= 256:  # /24 network
+            scope_level = "MODERATE"
+            scope_description = f"Small business or subnet network ({num_addresses:,} IPs)"
+            user_impact = f"Could affect {estimated_users_min}-{estimated_users_max} users"
+        elif num_addresses >= 16:  # /28 network
+            scope_level = "SMALL"
+            scope_description = f"Small subnet or device group ({num_addresses:,} IPs)"
+            user_impact = f"Could affect {estimated_users_min}-{estimated_users_max} users"
+        elif num_addresses > 1:
+            scope_level = "MINIMAL"
+            scope_description = f"Small range of {num_addresses:,} IP addresses"
+            user_impact = f"Could affect {estimated_users_min}-{estimated_users_max} users"
+        else:
+            scope_level = "SINGLE"
+            scope_description = "Single IP address - minimal impact"
+            user_impact = "Could affect 1-10 users"
         
-        if num_addresses > 16777216:  # /8 network
-            reasons.append(f"CRITICAL: Blocking entire /8 network ({num_addresses:,} addresses)")
-            risk_score = 0.95
-        elif num_addresses > 1048576:  # /12 network
-            reasons.append(f"HIGH RISK: Large network block /{ip_obj.prefixlen} ({num_addresses:,} addresses)")
-            risk_score = 0.85
-        elif num_addresses > 65536:  # /16 network
-            reasons.append(f"MEDIUM RISK: Medium network block /{ip_obj.prefixlen} ({num_addresses:,} addresses)")
-            risk_score = 0.65
-        elif num_addresses > 256:  # /24 network
-            reasons.append(f"LOW RISK: Small network block /{ip_obj.prefixlen} ({num_addresses:,} addresses)")
-            risk_score = 0.35
+        # Calculate economic impact estimates
+        if num_addresses >= 1000000:
+            economic_impact = "Potentially millions in lost revenue and service disruption"
+        elif num_addresses >= 100000:
+            economic_impact = "Potentially hundreds of thousands in lost revenue"
+        elif num_addresses >= 10000:
+            economic_impact = "Potentially tens of thousands in lost revenue"
+        elif num_addresses >= 1000:
+            economic_impact = "Potentially thousands in lost revenue"
+        else:
+            economic_impact = "Minimal economic impact expected"
         
-        if num_addresses > self.blocked_count_threshold:
-            reasons.append(f"WARNING: Would block {num_addresses:,} IP addresses")
-            risk_score = max(risk_score, 0.7)
+        # Calculate recovery time estimates
+        if num_addresses >= 1000000:
+            recovery_time = "Days to weeks to identify and resolve issues"
+        elif num_addresses >= 100000:
+            recovery_time = "Hours to days to resolve service issues"
+        elif num_addresses >= 10000:
+            recovery_time = "Hours to resolve most issues"
+        elif num_addresses >= 1000:
+            recovery_time = "Minutes to hours to resolve issues"
+        else:
+            recovery_time = "Minutes to resolve any issues"
         
-        return {"reasons": reasons, "risk_score": risk_score} if reasons else None
+        return {
+            "scope_level": scope_level,
+            "scope_description": scope_description,
+            "user_impact": user_impact,
+            "economic_impact": economic_impact,
+            "recovery_time": recovery_time,
+            "network_classification": self._classify_network_size(network_size, address_space),
+            "internet_percentage_readable": self._format_percentage(percentage),
+            "addresses_formatted": f"{num_addresses:,}"
+        }
+    
+    def _classify_network_size(self, network_size: int, address_space: str) -> str:
+        """Classify the network size in human-readable terms"""
+        if address_space == "IPv4":
+            if network_size <= 8:
+                return "Massive network block (/8 or larger)"
+            elif network_size <= 12:
+                return "Very large network block (/12)"
+            elif network_size <= 16:
+                return "Large network block (/16)"
+            elif network_size <= 20:
+                return "Medium network block (/20)"
+            elif network_size <= 24:
+                return "Small network block (/24)"
+            elif network_size <= 28:
+                return "Very small subnet (/28)"
+            elif network_size <= 30:
+                return "Tiny subnet (/30)"
+            else:
+                return "Single IP address (/32)"
+        else:  # IPv6
+            if network_size <= 32:
+                return "Massive IPv6 network block"
+            elif network_size <= 48:
+                return "Large IPv6 network block"
+            elif network_size <= 64:
+                return "Medium IPv6 network block"
+            elif network_size <= 96:
+                return "Small IPv6 network block"
+            elif network_size <= 120:
+                return "Tiny IPv6 subnet"
+            else:
+                return "Single IPv6 address"
+    
+    def _format_percentage(self, percentage: float) -> str:
+        """Format percentage in human-readable form"""
+        if percentage >= 1.0:
+            return f"{percentage:.2f}% of the internet"
+        elif percentage >= 0.01:
+            return f"{percentage:.4f}% of the internet"
+        elif percentage >= 0.0001:
+            return f"{percentage:.6f}% of the internet"
+        else:
+            return "Single IP address (minimal internet impact)"
     
     async def _analyze_geolocation(self, ip_address: str) -> Optional[Dict]:
         """Analyze IP geolocation for risk factors"""
@@ -349,17 +575,17 @@ class IPGuardianAgent:
                 
                 # Check for major infrastructure
                 if any(provider in org for provider in ["google", "amazon", "microsoft", "cloudflare", "github"]):
-                    reasons.append(f"HIGH RISK: Major cloud/service provider ({org})")
+                    reasons.append(f"High risk: Major cloud/service provider ({org})")
                     risk_score = 0.8
                 
                 # Check for ISPs
                 if any(term in org for term in ["isp", "telecom", "internet service", "broadband"]):
-                    reasons.append(f"MEDIUM RISK: ISP network ({org})")
+                    reasons.append(f"Medium risk: ISP network ({org})")
                     risk_score = 0.6
                 
                 # Check for universities or government
                 if any(term in org for term in ["university", "edu", "government", "gov"]):
-                    reasons.append(f"HIGH RISK: Educational/Government network ({org})")
+                    reasons.append(f"High risk: Educational/Government network ({org})")
                     risk_score = 0.75
             
             return {
@@ -516,24 +742,25 @@ class IPGuardianAgent:
     def _determine_risk_level(self, risk_score: float, reasons: List[str]) -> Tuple[RiskLevel, str]:
         """Determine overall risk level and suggested action"""
         
-        # Check for critical keywords in reasons - these override all other scoring
-        critical_keywords = ["CRITICAL:", "localhost", "private network", "Google DNS", "Cloudflare DNS", "essential network"]
-        high_risk_keywords = ["HIGH RISK:", "major", "provider", "government", "university"]
+        # Only flag truly critical infrastructure - be very conservative
+        critical_keywords = ["Google DNS", "Cloudflare DNS", "localhost", "127.0.0.1", "::1", "private network", "10.0.0", "192.168.", "172.16."]
+        high_risk_keywords = ["government", "university", "major cloud provider", "AWS", "Microsoft", "Azure"]
         
-        # If ANY reason contains CRITICAL keywords, immediately escalate to CRITICAL
+        # Check if ANY reason contains critical keywords
         has_critical = any(any(keyword.lower() in reason.lower() for keyword in critical_keywords) for reason in reasons)
         has_high_risk = any(any(keyword.lower() in reason.lower() for keyword in high_risk_keywords) for reason in reasons)
         
+        # Risk level determination - be much more conservative
         if has_critical:
-            return RiskLevel.CRITICAL, "BLOCK - Critical infrastructure risk detected"
-        elif has_high_risk or risk_score >= 0.7:
-            return RiskLevel.HIGH, "MANUAL_REVIEW - High risk, requires approval"
-        elif risk_score >= 0.5:
-            return RiskLevel.MEDIUM, "WARN - Medium risk, proceed with caution"
-        elif risk_score >= 0.3:
-            return RiskLevel.LOW, "ALLOW - Low risk, safe to block"
+            return RiskLevel.CRITICAL, "Block - Critical infrastructure risk detected"
+        elif has_high_risk or risk_score >= 0.9:  # Only very high scores get high risk
+            return RiskLevel.HIGH, "Manual review - High risk, requires approval"
+        elif risk_score >= 0.7:  # Raised threshold for medium risk
+            return RiskLevel.MEDIUM, "Warn - Medium risk, proceed with caution"
+        elif risk_score >= 0.3:  # Most regular IPs will be low risk
+            return RiskLevel.LOW, "Allow - Low risk, safe to block"
         else:
-            return RiskLevel.SAFE, "ALLOW - Safe to block"
+            return RiskLevel.SAFE, "Safe - No significant risks detected"
     
     def _store_analysis(self, analysis: IPAnalysis):
         """Store analysis results in database"""
@@ -614,15 +841,15 @@ class IPGuardianAgent:
         explanation = self._generate_detailed_explanation(analysis)
         
         if analysis.risk_level == RiskLevel.CRITICAL:
-            return f"🚫 CRITICAL RISK - DO NOT BLOCK!\n\n{explanation}\n\n💡 ALTERNATIVE: Consider allowlisting this IP instead or investigating the source of malicious activity."
+            return f"Critical risk - Do not block!\n\n{explanation}\n\nAlternative: Consider allowlisting this IP instead or investigating the source of malicious activity."
         elif analysis.risk_level == RiskLevel.HIGH:
-            return f"⚠️ HIGH RISK - MANUAL REVIEW REQUIRED\n\n{explanation}\n\n🔍 RECOMMENDED ACTION: Have a network administrator review this decision before proceeding."
+            return f"High risk - Manual review required\n\n{explanation}\n\nRecommended action: Have a network administrator review this decision before proceeding."
         elif analysis.risk_level == RiskLevel.MEDIUM:
-            return f"🔶 MEDIUM RISK - PROCEED WITH CAUTION\n\n{explanation}\n\n📊 RECOMMENDED ACTION: Monitor network traffic after blocking for any service disruptions."
+            return f"Medium risk - Proceed with caution\n\n{explanation}\n\nRecommended action: Monitor network traffic after blocking for any service disruptions."
         elif analysis.risk_level == RiskLevel.LOW:
-            return f"🟡 LOW RISK - GENERALLY SAFE\n\n{explanation}\n\n✅ RECOMMENDED ACTION: Safe to proceed, but maintain monitoring for false positives."
+            return f"Low risk - Generally safe\n\n{explanation}\n\nRecommended action: Safe to proceed, but maintain monitoring for false positives."
         else:
-            return f"✅ SAFE TO BLOCK\n\n{explanation}\n\n🎯 RECOMMENDED ACTION: No significant risks detected. Proceed with blocking."
+            return f"Safe to block\n\n{explanation}\n\nRecommended action: No significant risks detected. Proceed with blocking."
     
     def _generate_detailed_explanation(self, analysis: IPAnalysis) -> str:
         """Generate detailed AI-powered explanation of blocking consequences"""
@@ -633,94 +860,52 @@ class IPGuardianAgent:
         for reason in analysis.reasons:
             if "Google DNS" in reason:
                 explanations.append(
-                    "🌐 CRITICAL INFRASTRUCTURE IMPACT:\n"
-                    "• Blocking Google DNS (8.8.8.8/8.8.4.4) would break internet connectivity for millions of users\n"
-                    "• Many applications, routers, and devices are hardcoded to use these servers\n"
-                    "• This could cause cascading failures across your entire network infrastructure\n"
-                    "• Legal implications: Could be considered service disruption affecting public services"
+                    "Critical infrastructure: Blocking Google DNS would break internet connectivity for millions of users and cause cascading network failures."
                 )
             
             elif "Cloudflare DNS" in reason:
                 explanations.append(
-                    "☁️ DNS INFRASTRUCTURE IMPACT:\n"
-                    "• Cloudflare DNS (1.1.1.1) is used by millions of devices globally\n"
-                    "• Blocking this would cause DNS resolution failures for users who rely on it\n"
-                    "• Many privacy-focused applications default to Cloudflare DNS\n"
-                    "• Could break VPN services and security applications that depend on it"
+                    "DNS infrastructure: Blocking Cloudflare DNS would cause resolution failures and break VPN services for many users."
                 )
             
             elif "private network" in reason.lower():
                 explanations.append(
-                    "🏠 PRIVATE NETWORK IMPACT:\n"
-                    "• This is a private IP address used for internal network communication\n"
-                    "• Blocking private IPs could break internal services, file sharing, and device communication\n"
-                    "• Could affect printers, IoT devices, internal servers, and workstation connectivity\n"
-                    "• May cause authentication issues with domain controllers or internal databases"
+                    "Private network: This IP is used for internal communication. Blocking could break file sharing, printers, and internal services."
                 )
             
             elif "localhost" in reason.lower():
                 explanations.append(
-                    "💻 LOCALHOST IMPACT:\n"
-                    "• Localhost (127.0.0.1) is essential for local system communication\n"
-                    "• Blocking this would break local applications, databases, and development tools\n"
-                    "• Could prevent web servers, APIs, and local services from functioning\n"
-                    "• May cause system instability and prevent troubleshooting tools from working"
+                    "Localhost: Essential for local system communication. Blocking would break local applications and development tools."
                 )
             
             elif "cloud provider" in reason.lower() or "AWS" in reason or "Microsoft" in reason or "Azure" in reason:
                 explanations.append(
-                    "☁️ CLOUD INFRASTRUCTURE IMPACT:\n"
-                    "• This IP belongs to a major cloud provider (AWS/Azure/GCP)\n"
-                    "• Blocking could affect critical business applications hosted in the cloud\n"
-                    "• May break email services, web applications, APIs, and data synchronization\n"
-                    "• Could impact remote work capabilities and customer-facing services\n"
-                    "• Financial impact: Potential service downtime affecting revenue"
+                    "Cloud infrastructure: Blocking could affect business applications, email services, and remote work capabilities."
                 )
             
             elif "CDN" in reason or "content delivery" in reason.lower():
                 explanations.append(
-                    "🚀 CONTENT DELIVERY IMPACT:\n"
-                    "• This IP is part of a Content Delivery Network (CDN)\n"
-                    "• Blocking could slow down or break website loading for users\n"
-                    "• May affect media streaming, software updates, and file downloads\n"
-                    "• Could impact user experience and website performance metrics"
+                    "Content delivery: Blocking could slow down website loading and affect media streaming."
                 )
             
             elif "government" in reason.lower():
                 explanations.append(
-                    "🏛️ GOVERNMENT NETWORK IMPACT:\n"
-                    "• This IP belongs to a government network or agency\n"
-                    "• Blocking could interfere with legitimate government communications\n"
-                    "• May affect compliance with government regulations or contracts\n"
-                    "• Could have legal implications if blocking interferes with official business\n"
-                    "• Recommended: Contact legal/compliance team before proceeding"
+                    "Government network: Blocking could interfere with official communications and have legal implications."
                 )
             
             elif "university" in reason.lower() or "education" in reason.lower():
                 explanations.append(
-                    "🎓 EDUCATIONAL NETWORK IMPACT:\n"
-                    "• This IP belongs to an educational institution\n"
-                    "• Blocking could affect research collaboration and academic communications\n"
-                    "• May interfere with student access to educational resources\n"
-                    "• Could impact legitimate academic research and data sharing"
+                    "Educational network: Blocking could affect research collaboration and student access to resources."
                 )
             
             elif "ISP" in reason or "internet service provider" in reason.lower():
                 explanations.append(
-                    "🌐 ISP INFRASTRUCTURE IMPACT:\n"
-                    "• This IP belongs to a major Internet Service Provider\n"
-                    "• Blocking could affect thousands of legitimate users on this ISP\n"
-                    "• May cause collateral damage to innocent users sharing this IP range\n"
-                    "• Could impact business customers and residential users alike"
+                    "ISP infrastructure: Blocking could affect thousands of legitimate users on this provider."
                 )
             
             elif "large network" in reason.lower() or "affects many IPs" in reason:
                 explanations.append(
-                    "📊 SCALE IMPACT ANALYSIS:\n"
-                    "• This block would affect a large number of IP addresses\n"
-                    "• High probability of blocking legitimate users along with threats\n"
-                    "• Could cause widespread service disruptions\n"
-                    "• Recommended: Use more targeted blocking or implement rate limiting instead"
+                    "Large network: This block would affect many IP addresses with high probability of blocking legitimate users."
                 )
         
         # If no specific explanations were generated, provide general analysis
@@ -746,56 +931,35 @@ class IPGuardianAgent:
         
         # Analyze confidence level
         if analysis.confidence > 0.9:
-            impact_factors.append("• High confidence in risk assessment - strong indicators present")
+            impact_factors.append("High confidence in risk assessment")
         elif analysis.confidence > 0.7:
-            impact_factors.append("• Moderate confidence - some risk indicators detected")
+            impact_factors.append("Moderate confidence with some risk indicators")
         else:
-            impact_factors.append("• Lower confidence - limited data available for assessment")
+            impact_factors.append("Lower confidence due to limited data")
         
         # Analyze number of reasons
         if len(analysis.reasons) > 5:
-            impact_factors.append("• Multiple risk factors identified - comprehensive threat profile")
+            impact_factors.append("Multiple risk factors identified")
         elif len(analysis.reasons) > 2:
-            impact_factors.append("• Several risk factors present - moderate complexity")
+            impact_factors.append("Several risk factors present")
         else:
-            impact_factors.append("• Limited risk factors - straightforward case")
+            impact_factors.append("Limited risk factors detected")
         
         # General network impact
         if analysis.risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]:
-            impact_factors.append("• Potential for significant network or service disruption")
-            impact_factors.append("• May affect multiple users or critical infrastructure")
+            impact_factors.append("Potential for significant network disruption")
         
-        return f"📋 GENERAL IMPACT ANALYSIS:\n" + "\n".join(impact_factors)
+        return "General analysis: " + ". ".join(impact_factors) + "."
     
     def _assess_business_impact(self, analysis: IPAnalysis) -> str:
         """Assess potential business impact of blocking this IP"""
         
         if analysis.risk_level == RiskLevel.CRITICAL:
-            return (
-                "💼 BUSINESS IMPACT ASSESSMENT:\n"
-                "• SEVERE: Could cause major service outages affecting revenue\n"
-                "• May result in customer complaints and support tickets\n"
-                "• Potential SLA violations and contractual penalties\n"
-                "• Could damage company reputation and customer trust\n"
-                "• Estimated recovery time: Hours to days depending on infrastructure"
-            )
+            return "Business impact: Could cause major service outages affecting revenue and customer trust. Recovery time: hours to days."
         elif analysis.risk_level == RiskLevel.HIGH:
-            return (
-                "💼 BUSINESS IMPACT ASSESSMENT:\n"
-                "• MODERATE: May cause service degradation or limited outages\n"
-                "• Potential impact on specific user groups or services\n"
-                "• Could require manual intervention to resolve issues\n"
-                "• May affect productivity for certain departments\n"
-                "• Estimated recovery time: Minutes to hours"
-            )
+            return "Business impact: May cause service degradation requiring manual intervention. Recovery time: minutes to hours."
         elif analysis.risk_level == RiskLevel.MEDIUM:
-            return (
-                "💼 BUSINESS IMPACT ASSESSMENT:\n"
-                "• LOW-MODERATE: Minor impact expected\n"
-                "• May cause inconvenience for some users\n"
-                "• Generally manageable with standard procedures\n"
-                "• Limited effect on overall business operations"
-            )
+            return "Business impact: Minor impact expected with limited effect on operations."
         
         return None
     
@@ -805,31 +969,16 @@ class IPGuardianAgent:
         alternatives = []
         
         if analysis.risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]:
-            alternatives.extend([
-                "🔄 ALTERNATIVE SECURITY MEASURES:",
-                "• Rate limiting: Limit connections per minute instead of complete blocking",
-                "• Geo-blocking: Block specific countries while allowing legitimate traffic",
-                "• Deep packet inspection: Analyze traffic content rather than blocking IPs",
-                "• Allowlist approach: Explicitly allow known good IPs and block others",
-                "• Behavioral analysis: Monitor for suspicious patterns instead of IP-based blocking"
-            ])
+            alternatives.append("Consider rate limiting, geo-blocking, or allowlist approach instead of complete blocking")
         
         if "DNS" in " ".join(analysis.reasons):
-            alternatives.extend([
-                "• DNS filtering: Block malicious domains instead of DNS servers",
-                "• Custom DNS configuration: Redirect to internal DNS servers",
-                "• DNS monitoring: Log and analyze DNS queries for threats"
-            ])
+            alternatives.append("Try DNS filtering or custom DNS configuration instead")
         
         if "cloud" in " ".join(analysis.reasons).lower():
-            alternatives.extend([
-                "• Application-level blocking: Block specific services instead of entire IP ranges",
-                "• API rate limiting: Control access to cloud services",
-                "• Cloud security groups: Use provider-native security controls"
-            ])
+            alternatives.append("Use application-level blocking or cloud security groups")
         
         if alternatives:
-            return "\n".join(alternatives)
+            return "Alternatives: " + ". ".join(alternatives) + "."
         
         return None
     
@@ -915,39 +1064,39 @@ class IPGuardianAgent:
         
         # Get risk level title
         risk_title = {
-            RiskLevel.CRITICAL: "CRITICAL RISK - DO NOT BLOCK!",
-            RiskLevel.HIGH: "HIGH RISK - MANUAL REVIEW REQUIRED",
-            RiskLevel.MEDIUM: "MEDIUM RISK - PROCEED WITH CAUTION",
-            RiskLevel.LOW: "LOW RISK - GENERALLY SAFE",
-            RiskLevel.SAFE: "SAFE TO BLOCK"
-        }.get(risk_level, "UNKNOWN RISK")
+            RiskLevel.CRITICAL: "Critical risk - Do not block!",
+            RiskLevel.HIGH: "High risk - Manual review required",
+            RiskLevel.MEDIUM: "Medium risk - Proceed with caution",
+            RiskLevel.LOW: "Low risk - Generally safe",
+            RiskLevel.SAFE: "Safe to block"
+        }.get(risk_level, "Unknown risk")
         
         # Build formatted explanation
         sections = []
         
         # Main explanation
         if gemini_result.get("explanation"):
-            sections.append(f"🧠 AI ANALYSIS:\n{gemini_result['explanation']}")
+            sections.append(f"AI analysis:\n{gemini_result['explanation']}")
         
         # Technical impact
         if gemini_result.get("technical_impact"):
-            sections.append(f"⚙️ TECHNICAL IMPACT:\n{gemini_result['technical_impact']}")
+            sections.append(f"Technical impact:\n{gemini_result['technical_impact']}")
         
         # Business impact
         if gemini_result.get("business_impact"):
-            sections.append(f"💼 BUSINESS IMPACT:\n{gemini_result['business_impact']}")
+            sections.append(f"Business impact:\n{gemini_result['business_impact']}")
         
         # Alternatives
         if gemini_result.get("alternatives"):
-            sections.append(f"🔄 ALTERNATIVE MEASURES:\n{gemini_result['alternatives']}")
+            sections.append(f"Alternative measures:\n{gemini_result['alternatives']}")
         
         # Recommendations
         if gemini_result.get("recommendations"):
-            sections.append(f"💡 RECOMMENDATIONS:\n{gemini_result['recommendations']}")
+            sections.append(f"Recommendations:\n{gemini_result['recommendations']}")
         
         # Severity justification
         if gemini_result.get("severity_justification"):
-            sections.append(f"📊 RISK ASSESSMENT:\n{gemini_result['severity_justification']}")
+            sections.append(f"Risk assessment:\n{gemini_result['severity_justification']}")
         
         # Combine all sections
         explanation_body = "\n\n".join(sections) if sections else "Detailed analysis not available"

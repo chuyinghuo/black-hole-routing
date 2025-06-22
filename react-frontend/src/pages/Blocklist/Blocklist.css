@@ -42,4 +42,59 @@ h1, h2 {
 .modal-header {
   background-color: var(--primary-color, #012169);
   color: var(--text-light, #ffffff);
+}
+
+/* Network Analysis Styles */
+.stat-card {
+  text-align: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.impact-details {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.impact-details ul li {
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.impact-details strong {
+  color: var(--primary-color, #012169);
+}
+
+/* High impact warning styles */
+.alert-danger h6 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+/* Modal adjustments for network analysis */
+.modal-lg .modal-body .card {
+  border: 1px solid #dee2e6;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.modal-lg .modal-body .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-weight: 600;
 } 

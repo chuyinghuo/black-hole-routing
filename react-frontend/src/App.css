@@ -447,7 +447,6 @@ thead a:hover {
     font-size: 0.9rem !important;
     font-weight: 500 !important;
     margin-bottom: 0 !important;
-    text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
 }
 
@@ -553,7 +552,6 @@ thead a:hover {
     border-radius: 4px !important;
     font-size: 0.75rem !important;
     font-weight: 600 !important;
-    text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
 }
 

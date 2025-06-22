@@ -218,12 +218,14 @@ class ApiService {
     ip_address: string;
     risk_level: string;
     confidence: number;
-    detailed_explanation: string;
-    reasons: string[];
-    suggested_action: string;
-    analysis_time: string;
+    detailed_explanation?: string;
+    reasons?: string[];
+    suggested_action?: string;
+    analysis_time?: string;
     guardian_enabled: boolean;
     fallback_explanation?: string;
+    show_detailed_analysis?: boolean;
+    simple_message?: string;
   }> {
     const response = await apiClient.post('/api/blocklist/guardian/explain', { ip_address: ipAddress });
     return response.data;

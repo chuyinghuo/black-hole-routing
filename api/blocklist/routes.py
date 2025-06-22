@@ -178,16 +178,19 @@ def home():
                     validation = loop.run_until_complete(validate_with_guardian(ip_address))
                     loop.close()
                     
-                    if not validation['allowed']:
+                    # Only show Guardian warnings for CRITICAL and HIGH risks (case insensitive)
+                    risk_level = validation.get('risk_level', 'UNKNOWN')
+                    if not validation['allowed'] and risk_level.upper() in ['CRITICAL', 'HIGH']:
                         return jsonify({
                             'error': 'Guardian prevented block',
                             'reason': validation.get('recommendation', 'Blocked by Guardian'),
-                            'risk_level': validation.get('risk_level', 'UNKNOWN'),
+                            'risk_level': risk_level,
                             'confidence': validation.get('confidence', 0),
                             'guardian_block': True,
                             'can_override': True,
                             'detailed_explanation': validation.get('recommendation', 'Blocked by Guardian')
                         }), 403
+                    # For MEDIUM, LOW, or UNKNOWN risks, allow blocking without warnings
                 except Exception as e:
                     print(f"Guardian validation error: {e}")
                     # Continue with blocking if Guardian fails
@@ -539,19 +542,112 @@ def explain_ip_impact():
                 # Run the async function in a new event loop
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                result = loop.run_until_complete(guard.validate_blocklist_addition(ip_address))
+                analysis_result = loop.run_until_complete(guard.analyze_ip(ip_address))
+                validation_result = loop.run_until_complete(guard.validate_blocklist_addition(ip_address))
                 loop.close()
                 
-                return jsonify({
+                # Only provide detailed explanations for CRITICAL risk IPs
+                if validation_result['risk_level'] != 'critical':
+                    return jsonify({
+                        'ip_address': ip_address,
+                        'risk_level': validation_result['risk_level'],
+                        'confidence': validation_result['confidence'],
+                        'simple_message': f"This IP has {validation_result['risk_level']} risk level. Safe to proceed with blocking.",
+                        'show_detailed_analysis': False,
+                        'guardian_enabled': True
+                    })
+                
+                # Extract network analysis data if available
+                network_analysis = None
+                if hasattr(analysis_result, 'network_info') and analysis_result.network_info:
+                    network_analysis = analysis_result.network_info.get('network_analysis', {})
+                
+                response_data = {
                     'ip_address': ip_address,
-                    'risk_level': result['risk_level'],
-                    'confidence': result['confidence'],
-                    'detailed_explanation': result['recommendation'],
-                    'reasons': result['reasons'],
-                    'suggested_action': result['action'],
-                    'analysis_time': result['analysis_time'],
+                    'risk_level': validation_result['risk_level'],
+                    'confidence': validation_result['confidence'],
+                    'detailed_explanation': validation_result['recommendation'],
+                    'reasons': validation_result['reasons'],
+                    'suggested_action': validation_result['action'],
+                    'analysis_time': validation_result['analysis_time'],
+                    'show_detailed_analysis': True,
                     'guardian_enabled': True
-                })
+                }
+                
+                # Add network analysis data if available
+                if network_analysis:
+                    response_data['network_analysis'] = {
+                        'num_addresses': network_analysis.get('num_addresses', 1),
+                        'percentage_of_internet': network_analysis.get('percentage_of_internet', 0),
+                        'address_space': network_analysis.get('address_space', 'IPv4'),
+                        'network_size': network_analysis.get('network_size', 32),
+                        'impact_analysis': network_analysis.get('impact_analysis', {})
+                    }
+                else:
+                    # Default for single IP
+                    import ipaddress
+                    try:
+                        ip_obj = ipaddress.ip_address(ip_address)
+                        
+                        response_data['network_analysis'] = {
+                            'num_addresses': 1,
+                            'percentage_of_internet': 0,
+                            'address_space': 'IPv4' if ip_obj.version == 4 else 'IPv6',
+                            'network_size': 32 if ip_obj.version == 4 else 128,
+                            'impact_analysis': {
+                                'scope_level': 'SINGLE',
+                                'scope_description': 'Single IP address - minimal impact',
+                                'user_impact': 'Could affect 1-10 users',
+                                'economic_impact': 'Minimal economic impact expected',
+                                'recovery_time': 'Minutes to resolve any issues',
+                                'network_classification': 'Single IP address',
+                                'internet_percentage_readable': f'Single IP address',
+                                'addresses_formatted': '1'
+                            }
+                        }
+                    except:
+                        # Handle subnet case
+                        try:
+                            ip_obj = ipaddress.ip_network(ip_address, strict=False)
+                            num_addresses = ip_obj.num_addresses
+                            
+                            response_data['network_analysis'] = {
+                                'num_addresses': num_addresses,
+                                'percentage_of_internet': 0,
+                                'address_space': 'IPv4' if ip_obj.version == 4 else 'IPv6',
+                                'network_size': ip_obj.prefixlen,
+                                'impact_analysis': {
+                                    'scope_level': 'SUBNET',
+                                    'scope_description': f'Subnet with {num_addresses:,} IP addresses',
+                                    'user_impact': f'Could affect {num_addresses * 2}-{num_addresses * 10} users',
+                                    'economic_impact': 'Impact depends on subnet usage',
+                                    'recovery_time': 'Minutes to hours to resolve issues',
+                                    'network_classification': f'/{ip_obj.prefixlen} subnet',
+                                    'internet_percentage_readable': f'Subnet contains {num_addresses:,} IP addresses',
+                                    'addresses_formatted': f'{num_addresses:,}'
+                                }
+                            }
+                        except:
+                            # Final fallback
+                            response_data['network_analysis'] = {
+                                'num_addresses': 1,
+                                'percentage_of_internet': 0,
+                                'address_space': 'IPv4',
+                                'network_size': 32,
+                                'impact_analysis': {
+                                    'scope_level': 'SINGLE',
+                                    'scope_description': 'Single IP address - minimal impact',
+                                    'user_impact': 'Could affect 1-10 users',
+                                    'economic_impact': 'Minimal economic impact expected',
+                                    'recovery_time': 'Minutes to resolve any issues',
+                                    'network_classification': 'Single IP address',
+                                    'internet_percentage_readable': f'Single IP address',
+                                    'addresses_formatted': '1'
+                                }
+                            }
+                
+                return jsonify(response_data)
+                
             except Exception as e:
                 print(f"Guardian analysis failed: {str(e)}")
                 return jsonify({

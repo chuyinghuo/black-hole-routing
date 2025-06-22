@@ -17,12 +17,24 @@
   border-left: 4px solid var(--accent-color, #00539B);
 }
 
+.stat-card.info {
+  border-left: 4px solid var(--info-color, #17a2b8);
+}
+
 .stat-card.warning {
   border-left: 4px solid var(--warning-color, #ffc107);
 }
 
 .stat-card.danger {
   border-left: 4px solid #dc3545;
+}
+
+.stat-card.secondary {
+  border-left: 4px solid var(--secondary-color, #6c757d);
+}
+
+.stat-card.light {
+  border-left: 4px solid var(--light-color, #f8f9fa);
 }
 
 .chart-container {

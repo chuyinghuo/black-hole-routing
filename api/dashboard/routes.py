@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_cors import cross_origin
 from models import Blocklist, Safelist, Historical
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_
 
 dashboard_bp = Blueprint(
@@ -30,6 +30,22 @@ def get_dashboard_data():
         print(f"- Blocklist: {total_blocked}")
         print(f"- Safelist: {total_safelist}")
         print(f"- Historical: {historical_count}")
+
+        # Calculate time-based blocking statistics
+        from datetime import datetime as dt, timedelta as td
+        now = dt.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = now - td(days=7)
+        month_start = now - td(days=30)
+
+        # Count IPs blocked today
+        blocked_today = Blocklist.query.filter(Blocklist.added_at >= today_start).count()
+        
+        # Count IPs blocked this week
+        blocked_this_week = Blocklist.query.filter(Blocklist.added_at >= week_start).count()
+        
+        # Count IPs blocked this month
+        blocked_this_month = Blocklist.query.filter(Blocklist.added_at >= month_start).count()
 
         # Get historical records for data processing
         historical_records = Historical.query.all()
@@ -108,6 +124,9 @@ def get_dashboard_data():
         stats = {
             'total_blocked': total_blocked,
             'total_safelist': total_safelist,
+            'blocked_today': blocked_today,
+            'blocked_this_week': blocked_this_week,
+            'blocked_this_month': blocked_this_month,
             'peak_hour': peak_hour_formatted,
             'peak_day': peak_day
         }

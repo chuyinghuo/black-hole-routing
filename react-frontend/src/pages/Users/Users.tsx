@@ -250,24 +250,40 @@ const Users: React.FC = () => {
                 <thead className="table-dark">
                   <tr>
                     <th>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setSort('id'); }}>
-                        ID <span id="sort-id">{getSortIndicator('id')}</span>
-                      </a>
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => setSort('id')}
+                      >
+                        ID {getSortIndicator('id')}
+                      </button>
                     </th>
                     <th>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setSort('net_id'); }}>
-                        Net ID <span id="sort-net_id">{getSortIndicator('net_id')}</span>
-                      </a>
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => setSort('net_id')}
+                      >
+                        Net ID {getSortIndicator('net_id')}
+                      </button>
                     </th>
                     <th>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setSort('role'); }}>
-                        Role <span id="sort-role">{getSortIndicator('role')}</span>
-                      </a>
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => setSort('role')}
+                      >
+                        Role {getSortIndicator('role')}
+                      </button>
                     </th>
                     <th>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setSort('added_at'); }}>
-                        Time Added <span id="sort-added_at">{getSortIndicator('added_at')}</span>
-                      </a>
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => setSort('added_at')}
+                      >
+                        Added At {getSortIndicator('added_at')}
+                      </button>
                     </th>
                     <th>Token</th>
                     <th>Status</th>

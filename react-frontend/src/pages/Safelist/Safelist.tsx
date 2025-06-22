@@ -301,39 +301,76 @@ const Safelist: React.FC = () => {
                     />
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('id'); }}>
-                      ID <span id="sort-id">{getSortIndicator('id')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('id')}
+                    >
+                      ID {getSortIcon('id')}
+                    </button>
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('ip_address'); }}>
-                      IP Address <span id="sort-ip_address">{getSortIndicator('ip_address')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('ip_address')}
+                    >
+                      IP Address {getSortIcon('ip_address')}
+                    </button>
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('comment'); }}>
-                      Comment <span id="sort-comment">{getSortIndicator('comment')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('comment')}
+                    >
+                      Comment {getSortIcon('comment')}
+                    </button>
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('created_by'); }}>
-                      Created By <span id="sort-created_by">{getSortIndicator('created_by')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('created_by')}
+                    >
+                      Created By {getSortIcon('created_by')}
+                    </button>
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('added_at'); }}>
-                      Added At <span id="sort-added_at">{getSortIndicator('added_at')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('added_at')}
+                    >
+                      Added At {getSortIcon('added_at')}
+                    </button>
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('expires_at'); }}>
-                      Expires At <span id="sort-expires_at">{getSortIndicator('expires_at')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('expires_at')}
+                    >
+                      Expires At {getSortIcon('expires_at')}
+                    </button>
                   </th>
                   <th>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setSort('duration'); }}>
-                      Duration (hrs) <span id="sort-duration">{getSortIndicator('duration')}</span>
-                    </a>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('duration')}
+                    >
+                      Duration {getSortIcon('duration')}
+                    </button>
+                  </th>
+                  <th>
+                    <button 
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                      onClick={() => handleSort('blocks_count')}
+                    >
+                      Blocks {getSortIcon('blocks_count')}
+                    </button>
                   </th>
                   <th>Actions</th>
                 </tr>

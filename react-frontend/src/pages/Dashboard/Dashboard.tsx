@@ -255,6 +255,37 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="col-xl-3 col-md-6">
+            <div className="card stat-card info shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title text-muted">Blocked Today</h5>
+                <h2 className="card-text">{dashboardData.stats.blocked_today}</h2>
+                <p className="mb-0 text-muted">New blocks today</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-xl-3 col-md-6">
+            <div className="card stat-card warning shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title text-muted">Blocked This Week</h5>
+                <h2 className="card-text">{dashboardData.stats.blocked_this_week}</h2>
+                <p className="mb-0 text-muted">Last 7 days</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-xl-3 col-md-6">
+            <div className="card stat-card secondary shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title text-muted">Blocked This Month</h5>
+                <h2 className="card-text">{dashboardData.stats.blocked_this_month}</h2>
+                <p className="mb-0 text-muted">Last 30 days</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Second Stats Row */}
+        <div className="row g-4 mb-4">
+          <div className="col-xl-3 col-md-6">
             <div 
               className="card stat-card success shadow-sm" 
               data-bs-toggle="modal" 
@@ -285,6 +316,15 @@ const Dashboard: React.FC = () => {
                 <h5 className="card-title text-muted">Peak Activity Day</h5>
                 <h2 className="card-text" id="peakDay">{dashboardData.stats.peak_day}</h2>
                 <p className="mb-0 text-muted">This month</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-xl-3 col-md-6">
+            <div className="card stat-card light shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title text-muted">System Status</h5>
+                <h2 className="card-text text-success">Active</h2>
+                <p className="mb-0 text-muted">All systems operational</p>
               </div>
             </div>
           </div>

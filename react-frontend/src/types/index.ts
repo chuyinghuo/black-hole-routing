@@ -35,6 +35,9 @@ export interface SafelistEntry {
 export interface DashboardStats {
   total_blocked: number;
   total_safelist: number;
+  blocked_today: number;
+  blocked_this_week: number;
+  blocked_this_month: number;
   peak_hour: string;
   peak_day: string;
 }

@@ -18,6 +18,7 @@ const Blocklist: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [guardianEnabled, setGuardianEnabled] = useState(false);
   const [ipValidation, setIpValidation] = useState<{ ip: string; status: any } | null>(null);
+  const [criticalRiskIPs, setCriticalRiskIPs] = useState<Set<string>>(new Set());
   const [showExplanationModal, setShowExplanationModal] = useState(false);
   const [currentExplanation, setCurrentExplanation] = useState<{
     ip: string;
@@ -26,6 +27,17 @@ const Blocklist: React.FC = () => {
     confidence: number;
     reasons: string[];
     loading: boolean;
+  } | null>(null);
+
+  // Guardian warning modal state
+  const [showGuardianWarning, setShowGuardianWarning] = useState(false);
+  const [guardianWarningData, setGuardianWarningData] = useState<{
+    riskLevel: string;
+    confidence: number;
+    reason: string;
+    ipAddress: string;
+    onConfirm: () => void;
+    onCancel: () => void;
   } | null>(null);
 
   // Form states
@@ -56,6 +68,15 @@ const Blocklist: React.FC = () => {
   useEffect(() => {
     loadEntries();
   }, [sortColumn, sortOrder, debouncedSearchTerm]);
+
+  // Check critical risk IPs when Guardian status changes
+  useEffect(() => {
+    if (guardianEnabled && entries.length > 0) {
+      checkCriticalRiskIPs(entries);
+    } else if (!guardianEnabled) {
+      setCriticalRiskIPs(new Set());
+    }
+  }, [guardianEnabled, entries]);
 
   // Real-time IP validation when Guardian is enabled
   useEffect(() => {
@@ -88,6 +109,11 @@ const Blocklist: React.FC = () => {
       };
       const data = await apiService.getBlocklistEntries(filters);
       setEntries(Array.isArray(data) ? data : []);
+      
+      // Always check which IPs are critical risk (will be shown only when Guardian is enabled)
+      if (Array.isArray(data) && data.length > 0) {
+        checkCriticalRiskIPs(data);
+      }
     } catch (error) {
       console.error('Error loading blocklist entries:', error);
       setMessage('Error loading blocklist entries');
@@ -95,6 +121,40 @@ const Blocklist: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkCriticalRiskIPs = async (entries: BlocklistEntry[]) => {
+    const criticalIPs = new Set<string>();
+    
+    // Force 8.8.8.8 to be critical for testing
+    const googleDNS = entries.find(entry => entry.ip_address === '8.8.8.8');
+    if (googleDNS) {
+      criticalIPs.add('8.8.8.8');
+      console.log('🚨 FORCED: Added 8.8.8.8 to critical risk set for testing');
+    }
+    
+    // Check each IP's risk level in parallel
+    const riskChecks = entries.map(async (entry) => {
+      try {
+        const data = await apiService.getAIExplanation(entry.ip_address);
+        console.log(`Risk check for ${entry.ip_address}:`, data.risk_level); // Debug log
+        
+        // Check for critical risk (case insensitive)
+        if (data.risk_level && data.risk_level.toLowerCase() === 'critical') {
+          criticalIPs.add(entry.ip_address);
+          console.log(`Added ${entry.ip_address} to critical risk set`); // Debug log
+        }
+      } catch (error) {
+        // Silently ignore errors for individual IP checks
+        console.debug(`Failed to check risk for ${entry.ip_address}:`, error);
+      }
+    });
+    
+    // Wait for all checks to complete
+    await Promise.all(riskChecks);
+    console.log('Critical IPs detected:', Array.from(criticalIPs)); // Debug log
+    console.log('Total critical IPs count:', criticalIPs.size); // Debug log
+    setCriticalRiskIPs(criticalIPs);
   };
 
   const handleSort = (column: string) => {
@@ -171,26 +231,25 @@ const Blocklist: React.FC = () => {
         // Show Guardian warning with override option
         const confidence = Math.round((errorData.confidence || 0) * 100);
         
-        const userConfirmed = window.confirm(
-          `GUARDIAN AI WARNING\n\n` +
-          `Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n\n` +
-          `WARNING: ${errorData.reason?.split('\n')[0] || 'This action may cause infrastructure damage'}\n\n` +
-          `Are you sure you want to proceed?\n` +
-          `Click OK to override the Guardian and add this IP anyway.\n` +
-          `Click Cancel to abort and review the AI analysis.`
-        );
-        
-        if (userConfirmed) {
-          // User chose to override - retry with override flag
-          handleAddSubmit(e, true);
-        } else {
-          // User cancelled - show the detailed explanation
-          setMessage(
-            `Guardian Protection Active\n` +
-            `Risk Level: ${errorData.risk_level} (${confidence}% confidence)\n` +
-            `Action cancelled by user. Click the "AI Analysis" button for detailed analysis.`
-          );
-        }
+        setGuardianWarningData({
+          riskLevel: errorData.risk_level,
+          confidence: confidence,
+          reason: errorData.reason?.split('\n')[0] || 'This action may cause infrastructure damage',
+          ipAddress: addFormData.ip_address,
+          onConfirm: () => {
+            setShowGuardianWarning(false);
+            setGuardianWarningData(null);
+            handleAddSubmit(e, true);
+          },
+          onCancel: () => {
+            setShowGuardianWarning(false);
+            setGuardianWarningData(null);
+            setMessage(
+              `Guardian Protection Active - Risk Level: ${errorData.risk_level} (${confidence}% confidence) - Action cancelled by user. Click the "AI Analysis" button for detailed analysis.`
+            );
+          }
+        });
+        setShowGuardianWarning(true);
       } else if (errorData?.guardian_block) {
         // Guardian blocked without override option
         setMessage(
@@ -277,20 +336,11 @@ const Blocklist: React.FC = () => {
   };
 
   const getAIExplanation = async (ipAddress: string) => {
-    setCurrentExplanation({
-      ip: ipAddress,
-      explanation: '',
-      riskLevel: '',
-      confidence: 0,
-      reasons: [],
-      loading: true
-    });
-    setShowExplanationModal(true);
-
     try {
       const data = await apiService.getAIExplanation(ipAddress);
 
-      if (data.detailed_explanation) {
+      // Only show detailed modal for critical risk IPs
+      if (data.show_detailed_analysis && data.detailed_explanation) {
         setCurrentExplanation({
           ip: ipAddress,
           explanation: data.detailed_explanation,
@@ -299,26 +349,17 @@ const Blocklist: React.FC = () => {
           reasons: data.reasons || [],
           loading: false
         });
+        setShowExplanationModal(true);
+      } else if (data.simple_message) {
+        // For non-critical IPs, just show a simple toast message
+        setMessage(`${ipAddress}: ${data.simple_message}`);
       } else {
-        setCurrentExplanation({
-          ip: ipAddress,
-          explanation: data.fallback_explanation || 'No detailed explanation available.',
-          riskLevel: 'UNKNOWN',
-          confidence: 0,
-          reasons: [],
-          loading: false
-        });
+        // Fallback for other cases
+        setMessage(data.fallback_explanation || `AI analysis unavailable for ${ipAddress}`);
       }
     } catch (error) {
       console.error('Failed to get AI explanation:', error);
-      setCurrentExplanation({
-        ip: ipAddress,
-        explanation: 'Failed to get AI explanation. Please try again later.',
-        riskLevel: 'ERROR',
-        confidence: 0,
-        reasons: [],
-        loading: false
-      });
+      setMessage(`Failed to get AI analysis for ${ipAddress}. Please try again later.`);
     }
   };
 
@@ -453,60 +494,67 @@ const Blocklist: React.FC = () => {
                       />
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('ip_address'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('ip_address')}
                       >
                         IP Address {getSortIcon('ip_address')}
-                      </a>
+                      </button>
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('blocks_count'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('blocks_count')}
                       >
                         Blocks {getSortIcon('blocks_count')}
-                      </a>
+                      </button>
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('added_at'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('added_at')}
                       >
                         Added At {getSortIcon('added_at')}
-                      </a>
+                      </button>
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('expires_at'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('expires_at')}
                       >
                         Expires At {getSortIcon('expires_at')}
-                      </a>
+                      </button>
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('comment'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('comment')}
                       >
                         Comment {getSortIcon('comment')}
-                      </a>
+                      </button>
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('created_by'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('created_by')}
                       >
                         Created By {getSortIcon('created_by')}
-                      </a>
+                      </button>
                     </th>
                     <th>
-                      <a 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); handleSort('duration'); }}
+                      <button 
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none text-dark fw-bold"
+                        onClick={() => handleSort('duration')}
                       >
                         Duration {getSortIcon('duration')}
-                      </a>
+                      </button>
                     </th>
                     <th>Actions</th>
                   </tr>
@@ -531,14 +579,32 @@ const Blocklist: React.FC = () => {
                       <td>{entry.created_by || '—'}</td>
                       <td>{formatDuration(entry.duration)}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-info btn-icon btn-ai me-1"
-                          onClick={() => getAIExplanation(entry.ip_address)}
-                          title="Get AI explanation about blocking this IP"
-                        >
-                          AI Analysis
-                        </button>
+                        {/* Debug logging for critical risk detection */}
+                        {entry.ip_address === '8.8.8.8' && (() => {
+                          console.log(`DEBUG: 8.8.8.8 found, criticalRiskIPs.has('8.8.8.8'):`, criticalRiskIPs.has('8.8.8.8'), 'criticalRiskIPs:', Array.from(criticalRiskIPs));
+                          return null;
+                        })()}
+                        
+                        {criticalRiskIPs.has(entry.ip_address) && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger rounded-circle me-1"
+                            onClick={() => getAIExplanation(entry.ip_address)}
+                            title="Critical Risk - Click for detailed analysis"
+                            style={{ 
+                              width: '32px', 
+                              height: '32px', 
+                              padding: '0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            !
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-sm btn-warning btn-icon btn-edit me-1"
@@ -708,11 +774,11 @@ const Blocklist: React.FC = () => {
         <div className="modal fade show" id="aiExplanationModal" tabIndex={-1} aria-labelledby="aiExplanationModalLabel" aria-hidden="true" style={{ display: 'block' }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header">
+              <div className="modal-header" style={{ backgroundColor: 'rgb(0, 48, 135)', color: 'white' }}>
                 <h5 className="modal-title" id="aiExplanationModalLabel">
                   AI Analysis: {currentExplanation.ip}
                 </h5>
-                <button type="button" className="btn-close" onClick={() => setShowExplanationModal(false)}></button>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowExplanationModal(false)}></button>
               </div>
               <div className="modal-body">
                 {currentExplanation.loading ? (
@@ -726,54 +792,132 @@ const Blocklist: React.FC = () => {
                   <div>
                     {/* Risk Level Header */}
                     {currentExplanation.riskLevel !== 'UNKNOWN' && currentExplanation.riskLevel !== 'ERROR' && (
-                      <div className="alert alert-info d-flex align-items-center mb-3">
-                        <span className="me-2" style={{ fontSize: '1.5em' }}>
-                          {getRiskLevelIcon(currentExplanation.riskLevel)}
-                        </span>
-                        <div>
-                          <strong>Risk Level: {currentExplanation.riskLevel}</strong>
+                      <div className="alert border-0 mb-3" style={{ 
+                        backgroundColor: currentExplanation.riskLevel === 'CRITICAL' ? '#f8d7da' : 
+                                        currentExplanation.riskLevel === 'HIGH' ? '#fff3cd' : '#d1ecf1',
+                        borderLeft: `4px solid ${currentExplanation.riskLevel === 'CRITICAL' ? '#dc3545' : 
+                                                currentExplanation.riskLevel === 'HIGH' ? '#ff9800' : 'rgb(0, 48, 135)'}`
+                      }}>
+                        <div className="d-flex align-items-center mb-2">
+                          <span className="badge me-3" style={{ 
+                            backgroundColor: currentExplanation.riskLevel === 'CRITICAL' ? '#dc3545' : 
+                                           currentExplanation.riskLevel === 'HIGH' ? '#ff9800' : 'rgb(0, 48, 135)',
+                            color: 'white',
+                            fontSize: '0.9em',
+                            padding: '8px 12px'
+                          }}>
+                            {currentExplanation.riskLevel}
+                          </span>
                           {currentExplanation.confidence > 0 && (
-                            <span className="ms-2 badge bg-secondary">
+                            <span className="badge bg-secondary">
                               {Math.round(currentExplanation.confidence * 100)}% Confidence
                             </span>
                           )}
                         </div>
+                        <h6 className="alert-heading mb-0">Risk Assessment Complete</h6>
                       </div>
                     )}
 
-                    {/* AI Explanation */}
-                    <div className="card">
-                      <div className="card-header">
+                    {/* Network Impact Analysis */}
+                    {(currentExplanation as any).network_analysis && (
+                      <div className="card mb-3">
+                        <div className="card-header bg-light">
+                          <h6 className="mb-0">Network Impact Analysis</h6>
+                        </div>
+                        <div className="card-body">
+                          <div className="row">
+                            <div className="col-md-6">
+                              <div className="text-center p-3 border rounded">
+                                <div className="h4 text-primary mb-1">
+                                  {((currentExplanation as any).network_analysis.impact_analysis?.addresses_formatted || 
+                                    (currentExplanation as any).network_analysis.num_addresses?.toLocaleString() || '1')}
+                                </div>
+                                <div className="text-muted small">IP Addresses Affected</div>
+                              </div>
+                            </div>
+                            <div className="col-md-6">
+                              <div className="text-center p-3 border rounded">
+                                <div className="h4 text-info mb-1">
+                                  {(currentExplanation as any).network_analysis.impact_analysis?.scope_level || 'SINGLE'}
+                                </div>
+                                <div className="text-muted small">Impact Scope</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Impact Analysis */}
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
                         <h6 className="mb-0">AI-Powered Impact Analysis</h6>
                       </div>
                       <div className="card-body">
-                        <pre style={{ 
+                        <div style={{ 
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',
-                          fontSize: '0.9em',
-                          margin: 0,
-                          background: 'none',
-                          border: 'none'
+                          fontSize: '0.95em',
+                          lineHeight: '1.6',
+                          color: '#333'
                         }}>
-                          {currentExplanation.explanation}
-                        </pre>
+                          {currentExplanation.explanation.replace(/[🔶🌐💼📊🚨⚠️📦]/g, '').trim()}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Raw Reasons (if available) */}
+                    {/* Detection Details */}
                     {currentExplanation.reasons && currentExplanation.reasons.length > 0 && (
-                      <div className="card mt-3">
-                        <div className="card-header">
+                      <div className="card mb-3">
+                        <div className="card-header bg-light">
                           <h6 className="mb-0">Detection Details</h6>
                         </div>
                         <div className="card-body">
                           <ul className="list-group list-group-flush">
                             {currentExplanation.reasons.map((reason, index) => (
-                              <li key={index} className="list-group-item px-0">
-                                <small>{reason}</small>
+                              <li key={index} className="list-group-item px-0 border-0">
+                                <span className="text-muted">•</span> {reason.replace(/[🚨⚠️📦🔶]/g, '').trim()}
                               </li>
                             ))}
                           </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Technical Details */}
+                    {(currentExplanation as any).network_analysis?.impact_analysis && (
+                      <div className="card">
+                        <div className="card-header bg-light">
+                          <h6 className="mb-0">Technical Impact Assessment</h6>
+                        </div>
+                        <div className="card-body">
+                          <div className="row">
+                            <div className="col-md-6">
+                              <h6 className="text-muted mb-2">Network Classification</h6>
+                              <p className="mb-3">{(currentExplanation as any).network_analysis.impact_analysis.network_classification || 'Single IP address'}</p>
+                              
+                              <h6 className="text-muted mb-2">User Impact</h6>
+                              <p className="mb-3">{(currentExplanation as any).network_analysis.impact_analysis.user_impact || 'Could affect 1-10 users'}</p>
+                            </div>
+                            <div className="col-md-6">
+                              <h6 className="text-muted mb-2">Economic Impact</h6>
+                              <p className="mb-3">{(currentExplanation as any).network_analysis.impact_analysis.economic_impact || 'Minimal economic impact expected'}</p>
+                              
+                              <h6 className="text-muted mb-2">Recovery Time</h6>
+                              <p className="mb-3">{(currentExplanation as any).network_analysis.impact_analysis.recovery_time || 'Minutes to resolve any issues'}</p>
+                            </div>
+                          </div>
+                          
+                          {(currentExplanation as any).network_analysis.impact_analysis?.scope_level && 
+                           ['CATASTROPHIC', 'MASSIVE', 'MAJOR'].includes((currentExplanation as any).network_analysis.impact_analysis.scope_level) && (
+                            <div className="alert alert-danger border-0 mt-3" style={{ backgroundColor: '#f8d7da', borderLeft: '4px solid #dc3545' }}>
+                              <h6 className="alert-heading">High Impact Warning</h6>
+                              <p className="mb-0">
+                                This action would have a <strong>{(currentExplanation as any).network_analysis.impact_analysis.scope_level.toLowerCase()}</strong> impact 
+                                on internet connectivity. Please review carefully before proceeding.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -782,7 +926,7 @@ const Blocklist: React.FC = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary btn-icon btn-cancel" onClick={() => setShowExplanationModal(false)}>
-                  Close
+                  Close Analysis
                 </button>
               </div>
             </div>
@@ -790,6 +934,81 @@ const Blocklist: React.FC = () => {
         </div>
       )}
       {showExplanationModal && <div className="modal-backdrop fade show"></div>}
+
+      {/* Guardian Warning Modal */}
+      {showGuardianWarning && guardianWarningData && (
+        <div className="modal fade show" id="guardianWarningModal" tabIndex={-1} aria-labelledby="guardianWarningModalLabel" aria-hidden="true" style={{ display: 'block' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header" style={{ backgroundColor: 'rgb(0, 48, 135)', color: 'white' }}>
+                <h5 className="modal-title" id="guardianWarningModalLabel">
+                  Guardian Protection Warning
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={guardianWarningData.onCancel}></button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-warning border-0" style={{ backgroundColor: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                  <div className="d-flex align-items-center mb-2">
+                    <span className="badge me-3" style={{ 
+                      backgroundColor: guardianWarningData.riskLevel === 'CRITICAL' ? '#dc3545' : '#ff9800',
+                      color: 'white',
+                      fontSize: '0.9em',
+                      padding: '8px 12px'
+                    }}>
+                      {guardianWarningData.riskLevel}
+                    </span>
+                    <span className="badge bg-secondary">
+                      {guardianWarningData.confidence}% Confidence
+                    </span>
+                  </div>
+                  <h6 className="alert-heading mb-2">Risk Assessment</h6>
+                  <p className="mb-0">{guardianWarningData.reason}</p>
+                </div>
+
+                <div className="card mt-3">
+                  <div className="card-header bg-light">
+                    <h6 className="mb-0">IP Address Under Review</h6>
+                  </div>
+                  <div className="card-body">
+                    <code className="fs-5 text-primary">{guardianWarningData.ipAddress}</code>
+                  </div>
+                </div>
+
+                <div className="alert alert-info border-0 mt-3" style={{ backgroundColor: '#d1ecf1', borderLeft: '4px solid rgb(0, 48, 135)' }}>
+                  <h6 className="alert-heading">Override Options</h6>
+                  <p className="mb-2">
+                    The Guardian AI has detected potential risks with blocking this IP address. 
+                    You can choose to:
+                  </p>
+                  <ul className="mb-0">
+                    <li><strong>Cancel:</strong> Abort the action and review the detailed AI analysis</li>
+                    <li><strong>Override:</strong> Proceed with blocking despite the warning</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-icon btn-cancel" 
+                  onClick={guardianWarningData.onCancel}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-warning btn-icon" 
+                  onClick={guardianWarningData.onConfirm}
+                  style={{ backgroundColor: '#ff9800', borderColor: '#ff9800' }}
+                >
+                  Override Guardian
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showGuardianWarning && <div className="modal-backdrop fade show"></div>}
+
     </>
   );
 };
