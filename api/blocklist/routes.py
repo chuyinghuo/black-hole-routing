@@ -544,6 +544,10 @@ def explain_ip_impact():
                 asyncio.set_event_loop(loop)
                 analysis_result = loop.run_until_complete(guard.analyze_ip(ip_address))
                 validation_result = loop.run_until_complete(guard.validate_blocklist_addition(ip_address))
+                
+                # Generate detailed explanation using Guardian's recommendation system
+                detailed_explanation = guard._generate_recommendation(analysis_result)
+                
                 loop.close()
                 
                 # Only provide detailed explanations for CRITICAL risk IPs
@@ -566,7 +570,8 @@ def explain_ip_impact():
                     'ip_address': ip_address,
                     'risk_level': validation_result['risk_level'],
                     'confidence': validation_result['confidence'],
-                    'detailed_explanation': validation_result['recommendation'],
+                    'explanation': detailed_explanation,  # This is the key field for the frontend
+                    'detailed_explanation': detailed_explanation,
                     'reasons': validation_result['reasons'],
                     'suggested_action': validation_result['action'],
                     'analysis_time': validation_result['analysis_time'],

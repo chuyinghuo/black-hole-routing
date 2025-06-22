@@ -82,6 +82,7 @@ def create_app():
     from api.safelist.routes import safelist_bp
     from api.users.routes import users_bp
     from api.dashboard.routes import dashboard_bp
+    from api.chatbot.routes import chatbot_bp
 
     # Register blueprints with /api prefix to avoid conflicts with React routes
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
@@ -89,6 +90,7 @@ def create_app():
     app.register_blueprint(safelist_bp, url_prefix="/api/safelist")
     app.register_blueprint(users_bp, url_prefix="/api/users")
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+    app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
 
     # Health check endpoint
     @app.route("/health")

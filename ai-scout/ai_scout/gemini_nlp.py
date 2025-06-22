@@ -4,11 +4,19 @@ Provides advanced natural language explanations using Google's Gemini AI
 """
 
 import os
-import google.generativeai as genai
+import logging
 from typing import Dict, List, Optional
 import json
-import logging
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Try to import Gemini with proper error handling
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    genai = None
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +27,10 @@ class GeminiNLPExplainer:
         self.api_key = api_key or os.getenv('API_KEY') or os.getenv('GEMINI_API_KEY')
         self.model = None
         self.initialized = False
+        
+        if not GEMINI_AVAILABLE:
+            logger.warning("⚠️ Google Gemini AI package not available. Install with: pip install google-generativeai")
+            return
         
         if self.api_key:
             try:
@@ -34,15 +46,16 @@ class GeminiNLPExplainer:
     
     def is_available(self) -> bool:
         """Check if Gemini is available for use"""
-        return self.initialized and self.model is not None
+        return GEMINI_AVAILABLE and self.initialized and self.model is not None
     
-    async def generate_advanced_explanation(self, 
+    def generate_advanced_explanation(self, 
                                     ip_address: str, 
                                     risk_level: str,
                                     basic_reasons: List[str],
                                     confidence: float) -> Dict[str, str]:
         """
         Generate advanced NLP explanation using Gemini about why blocking an IP is risky
+        Made synchronous to avoid event loop conflicts
         """
         
         if not self.is_available():
@@ -57,7 +70,7 @@ class GeminiNLPExplainer:
             # Construct the prompt for Gemini
             prompt = self._build_analysis_prompt(ip_address, risk_level, basic_reasons, confidence)
             
-            # Generate response from Gemini
+            # Generate response from Gemini (synchronous call)
             response = self.model.generate_content(prompt)
             
             # Parse the structured response
@@ -209,7 +222,7 @@ Focus on the most critical concern. Be specific and actionable.
             return f"IP {ip_address} requires careful consideration before blocking due to {risk_level} risk level"
 
 # Example usage and testing
-async def test_gemini_nlp():
+def test_gemini_nlp():
     """Test the Gemini NLP explainer"""
     
     explainer = GeminiNLPExplainer()
@@ -246,7 +259,7 @@ async def test_gemini_nlp():
         print(f"\n🔍 Analyzing {test['ip']} ({test['risk']} risk)")
         print("-" * 40)
         
-        result = await explainer.generate_advanced_explanation(
+        result = explainer.generate_advanced_explanation(
             test['ip'], test['risk'], test['reasons'], test['confidence']
         )
         
@@ -256,5 +269,4 @@ async def test_gemini_nlp():
         print(f"🔄 Alternatives: {result['alternatives'][:150]}...")
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(test_gemini_nlp()) 
+    test_gemini_nlp() 

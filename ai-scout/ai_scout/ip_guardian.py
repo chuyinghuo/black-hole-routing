@@ -814,21 +814,16 @@ class IPGuardianAgent:
     def _generate_recommendation(self, analysis: IPAnalysis) -> str:
         """Generate comprehensive AI-powered recommendation with detailed explanations"""
         
-        # Try to get Gemini-powered explanation first
+        # Try to get enhanced explanation from Gemini if available
         if self.gemini_explainer and self.gemini_explainer.is_available():
             try:
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                gemini_result = loop.run_until_complete(
-                    self.gemini_explainer.generate_advanced_explanation(
-                        analysis.ip_address,
-                        analysis.risk_level.value,
-                        analysis.reasons,
-                        analysis.confidence
-                    )
+                # Use synchronous call to avoid event loop conflicts
+                gemini_result = self.gemini_explainer.generate_advanced_explanation(
+                    analysis.ip_address,
+                    analysis.risk_level.value,
+                    analysis.reasons,
+                    analysis.confidence
                 )
-                loop.close()
                 
                 # Format Gemini response
                 gemini_explanation = self._format_gemini_explanation(gemini_result, analysis.risk_level)
@@ -841,15 +836,15 @@ class IPGuardianAgent:
         explanation = self._generate_detailed_explanation(analysis)
         
         if analysis.risk_level == RiskLevel.CRITICAL:
-            return f"Critical risk - Do not block!\n\n{explanation}\n\nAlternative: Consider allowlisting this IP instead or investigating the source of malicious activity."
+            return f"🚫 Critical risk - Do not block!\n\n{explanation}\n\nAlternative: Consider allowlisting this IP instead or investigating the source of malicious activity."
         elif analysis.risk_level == RiskLevel.HIGH:
-            return f"High risk - Manual review required\n\n{explanation}\n\nRecommended action: Have a network administrator review this decision before proceeding."
+            return f"⚠️ High risk - Manual review required\n\n{explanation}\n\nRecommended action: Have a network administrator review this decision before proceeding."
         elif analysis.risk_level == RiskLevel.MEDIUM:
-            return f"Medium risk - Proceed with caution\n\n{explanation}\n\nRecommended action: Monitor network traffic after blocking for any service disruptions."
+            return f"🔶 Medium risk - Proceed with caution\n\n{explanation}\n\nRecommended action: Monitor network traffic after blocking for any service disruptions."
         elif analysis.risk_level == RiskLevel.LOW:
-            return f"Low risk - Generally safe\n\n{explanation}\n\nRecommended action: Safe to proceed, but maintain monitoring for false positives."
+            return f"🟡 Low risk - Generally safe\n\n{explanation}\n\nRecommended action: Safe to proceed, but maintain monitoring for false positives."
         else:
-            return f"Safe to block\n\n{explanation}\n\nRecommended action: No significant risks detected. Proceed with blocking."
+            return f"✅ Safe to block\n\n{explanation}\n\nRecommended action: No significant risks detected. Proceed with blocking."
     
     def _generate_detailed_explanation(self, analysis: IPAnalysis) -> str:
         """Generate detailed AI-powered explanation of blocking consequences"""
