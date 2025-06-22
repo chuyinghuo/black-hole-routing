@@ -233,6 +233,9 @@ class IPGuardianAgent:
                     reasons.extend(context_risk["reasons"])
                     risk_factors.append(context_risk["risk_score"])
             
+            # Deduplicate reasons to avoid showing the same message multiple times
+            reasons = self._deduplicate_reasons(reasons)
+            
             # Calculate overall risk
             overall_risk_score = max(risk_factors) if risk_factors else 0.1
             confidence = min(len(risk_factors) * 0.2 + 0.6, 1.0)
@@ -1097,6 +1100,121 @@ class IPGuardianAgent:
         explanation_body = "\n\n".join(sections) if sections else "Detailed analysis not available"
         
         return f"{risk_emoji} {risk_title}\n\n{explanation_body}"
+
+    def _deduplicate_reasons(self, reasons: List[str]) -> List[str]:
+        """Remove duplicate and similar reasons to avoid repetitive messages"""
+        if not reasons:
+            return reasons
+        
+        # Remove exact duplicates first
+        seen = set()
+        deduplicated = []
+        
+        for reason in reasons:
+            if reason not in seen:
+                seen.add(reason)
+                deduplicated.append(reason)
+        
+        # Now remove semantically similar reasons, but prioritize critical infrastructure
+        final_reasons = []
+        
+        # Define similarity patterns with priority order (most important first)
+        similarity_patterns = [
+            # Google DNS patterns - keep the most descriptive one
+            {
+                "patterns": ["Critical: Google DNS server detected", "Critical: Google DNS infrastructure", "Critical: Overlaps with essential network 8.8.8.0/24"],
+                "priority": "Critical: Google DNS server detected"
+            },
+            
+            # Cloudflare DNS patterns  
+            {
+                "patterns": ["Critical: Cloudflare DNS server detected", "Critical: Cloudflare DNS infrastructure", "Critical: Overlaps with essential network 1.1.1.0/24"],
+                "priority": "Critical: Cloudflare DNS server detected"
+            },
+            
+            # Private network patterns
+            {
+                "patterns": ["Critical: Private network address detected", "Critical: Private network - would break internal communication", "Critical: Would affect internal network communication"],
+                "priority": "Critical: Private network address detected"
+            },
+            
+            # Localhost patterns
+            {
+                "patterns": ["Critical: Localhost/loopback address detected", "Critical: Localhost/loopback network - would break local services", "Critical: Would break local system communication"],
+                "priority": "Critical: Localhost/loopback address detected"
+            },
+            
+            # Service provider patterns
+            {
+                "patterns": ["High risk: Major cloud/service provider", "HIGH RISK: Legitimate service provider"],
+                "priority": "High risk: Major cloud/service provider"
+            },
+            
+            # Infrastructure patterns
+            {
+                "patterns": ["Critical infrastructure: This is a public DNS server", "Critical infrastructure"],
+                "priority": "Critical infrastructure: This is a public DNS server"
+            },
+        ]
+        
+        # Track which pattern groups we've processed
+        processed_patterns = set()
+        
+        # First pass: add priority reasons for matched patterns
+        for reason in deduplicated:
+            matched_pattern_idx = None
+            
+            # Check if this reason matches any similarity pattern
+            for i, pattern_group in enumerate(similarity_patterns):
+                for pattern in pattern_group["patterns"]:
+                    if pattern.lower() in reason.lower() or reason.lower() in pattern.lower():
+                        matched_pattern_idx = i
+                        break
+                if matched_pattern_idx is not None:
+                    break
+            
+            # If this reason matches a pattern we haven't processed yet
+            if matched_pattern_idx is not None and matched_pattern_idx not in processed_patterns:
+                # Add the priority reason for this pattern group
+                priority_reason = similarity_patterns[matched_pattern_idx]["priority"]
+                
+                # Check if any reason in this group actually exists in our list
+                group_reason_found = None
+                for pattern in similarity_patterns[matched_pattern_idx]["patterns"]:
+                    for orig_reason in deduplicated:
+                        if pattern.lower() in orig_reason.lower() or orig_reason.lower() in pattern.lower():
+                            group_reason_found = orig_reason
+                            break
+                    if group_reason_found:
+                        break
+                
+                # Add the actual reason found (or priority if exact match)
+                if group_reason_found:
+                    final_reasons.append(group_reason_found)
+                else:
+                    final_reasons.append(priority_reason)
+                
+                processed_patterns.add(matched_pattern_idx)
+        
+        # Second pass: add any reasons that don't match similarity patterns
+        for reason in deduplicated:
+            is_similar = False
+            
+            # Check if this reason is similar to any pattern we've already processed
+            for i, pattern_group in enumerate(similarity_patterns):
+                if i in processed_patterns:
+                    for pattern in pattern_group["patterns"]:
+                        if pattern.lower() in reason.lower() or reason.lower() in pattern.lower():
+                            is_similar = True
+                            break
+                if is_similar:
+                    break
+            
+            # If it's not similar to anything we've already added, include it
+            if not is_similar:
+                final_reasons.append(reason)
+        
+        return final_reasons
 
 # Example usage and testing
 async def test_ip_guardian():

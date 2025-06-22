@@ -550,8 +550,8 @@ def explain_ip_impact():
                 
                 loop.close()
                 
-                # Only provide detailed explanations for CRITICAL risk IPs
-                if validation_result['risk_level'] != 'critical':
+                # Only provide detailed explanations for CRITICAL and HIGH risk IPs
+                if validation_result['risk_level'] not in ['critical', 'high']:
                     return jsonify({
                         'ip_address': ip_address,
                         'risk_level': validation_result['risk_level'],

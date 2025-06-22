@@ -771,7 +771,7 @@ const Blocklist: React.FC = () => {
 
       {/* AI Explanation Modal */}
       {showExplanationModal && currentExplanation && (
-        <div className="modal fade show" id="aiExplanationModal" tabIndex={-1} aria-labelledby="aiExplanationModalLabel" aria-hidden="true" style={{ display: 'block' }}>
+        <div className="modal fade show ai-analysis-modal" id="aiExplanationModal" tabIndex={-1} aria-labelledby="aiExplanationModalLabel" aria-hidden="true" style={{ display: 'block' }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <div className="modal-header" style={{ backgroundColor: 'rgb(0, 48, 135)', color: 'white' }}>

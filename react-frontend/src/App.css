@@ -66,14 +66,44 @@ thead.table-dark {
     color: var(--text-light) !important;
 }
 
-thead a {
+thead.table-dark th {
+    background-color: var(--primary-color) !important; /* Duke Blue */
     color: var(--text-light) !important;
-    text-decoration: none !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-thead a:hover {
+thead.table-dark th a,
+thead.table-dark th button {
+    color: var(--text-light) !important; /* Force white text */
+    text-decoration: none !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+}
+
+thead.table-dark th a:hover,
+thead.table-dark th button:hover {
     text-decoration: underline !important;
+    color: var(--gray-200) !important; /* Slightly dimmed white on hover */
+    background: none !important;
+}
+
+thead.table-dark th .btn-link {
+    color: var(--text-light) !important; /* Force white text for button links */
+}
+
+thead.table-dark th .btn-link:hover {
     color: var(--gray-200) !important;
+}
+
+/* Override any dark text classes in table headers */
+thead.table-dark .text-dark {
+    color: var(--text-light) !important;
+}
+
+thead.table-dark .fw-bold {
+    color: var(--text-light) !important;
 }
 
 .table {
@@ -92,6 +122,10 @@ thead a:hover {
 .table-bordered > tbody > tr > td,
 .table-bordered > thead > tr > th {
     border-color: var(--gray-200) !important;
+}
+
+.table-bordered > thead > tr > th {
+    border-color: rgba(255, 255, 255, 0.2) !important; /* Lighter borders in header */
 }
 
 /* ==========================================================================
